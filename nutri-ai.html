@@ -1,0 +1,992 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>NutriAI – AI Health Advisor</title>
+  <link rel="stylesheet" href="styles.css"/>
+  <script src="config.js"></script>
+  <style>
+    body { background: var(--page-bg); overflow: hidden; }
+    .profile-card { margin: 10px; background: white; border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; }
+    .profile-card-header { background: linear-gradient(135deg, var(--primary), #166534); padding: 14px; display: flex; align-items: center; gap: 10px; }
+    .profile-avatar { width: 40px; height: 40px; border-radius: 50%; background: rgba(255,255,255,0.3); display: flex; align-items: center; justify-content: center; color: white; font-size: 14px; font-weight: 700; border: 2px solid rgba(255,255,255,0.5); }
+    .profile-info-name { font-size: 14px; font-weight: 700; color: white; }
+    .profile-info-tag { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; background: rgba(255,255,255,0.2); border-radius: var(--radius-full); font-size: 10px; color: white; font-weight: 600; margin-top: 3px; }
+    .profile-stats { padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; }
+    .profile-stat-row { display: flex; justify-content: space-between; align-items: center; }
+    .profile-stat-label { font-size: 12px; color: var(--text-muted); }
+    .profile-stat-val { font-size: 13px; font-weight: 700; }
+    .profile-stat-val.warning { color: #ef4444; }
+    .profile-stat-val.ok { color: var(--primary); }
+    .quick-actions { padding: 10px; display: flex; flex-direction: column; gap: 6px; }
+    .quick-action-btn { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: white; border: 1.5px solid var(--border); border-radius: var(--radius); font-size: 12px; font-weight: 600; color: var(--text-primary); cursor: pointer; transition: all 0.2s; width: 100%; }
+    .quick-action-btn:hover { border-color: var(--primary); color: var(--primary); background: var(--light-bg); }
+    .quick-action-btn.danger:hover { border-color: #ef4444; color: #ef4444; background: #fef2f2; }
+    .qa-icon { width: 28px; height: 28px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
+    .qa-snack .qa-icon { background: #fef3c7; }
+    .qa-hydration .qa-icon { background: #eff6ff; }
+    .qa-health .qa-icon { background: #fef2f2; }
+    .chat-layout { display: flex; flex: 1; overflow: hidden; }
+    .chat-main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+    .chat-header { padding: 14px 20px; background: white; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+    .chat-header-info { display: flex; align-items: center; gap: 12px; }
+    .chat-ai-avatar { width: 40px; height: 40px; background: var(--primary); border-radius: 12px; display: flex; align-items: center; justify-content: center; }
+    .chat-ai-name { font-size: 15px; font-weight: 800; color: var(--text-primary); }
+    .chat-ai-status { display: flex; align-items: center; gap: 5px; font-size: 12px; color: var(--text-muted); }
+    .status-dot { width: 7px; height: 7px; border-radius: 50%; background: #22c55e; }
+    .chat-action-btn { width: 34px; height: 34px; border-radius: 50%; background: var(--page-bg); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text-muted); transition: all 0.15s; }
+    .chat-action-btn:hover { color: var(--primary); border-color: var(--primary); }
+    .chat-messages { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 14px; background: #f8fafc; scroll-behavior: smooth; }
+    .chat-date { text-align: center; font-size: 11px; color: var(--text-muted); font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; margin: 4px 0; }
+    .msg { display: flex; gap: 10px; max-width: 82%; animation: msgSlide 0.3s ease both; }
+    @keyframes msgSlide { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    .msg.ai { align-self: flex-start; }
+    .msg.user { align-self: flex-end; flex-direction: row-reverse; }
+    .msg-avatar { width: 32px; height: 32px; border-radius: 10px; background: var(--primary); display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 2px; }
+    .msg-user-av { width: 32px; height: 32px; border-radius: 50%; background: var(--accent-orange); display: flex; align-items: center; justify-content: center; color: white; font-size: 12px; font-weight: 700; flex-shrink: 0; margin-top: 2px; }
+    .msg-bubble { padding: 12px 16px; border-radius: 18px; font-size: 13.5px; line-height: 1.65; }
+    .msg.ai .msg-bubble { background: white; color: var(--text-primary); border-radius: 4px 18px 18px 18px; border: 1px solid var(--border); box-shadow: 0 1px 4px rgba(0,0,0,0.05); }
+    .msg.user .msg-bubble { background: var(--primary); color: white; border-radius: 18px 18px 4px 18px; }
+    .msg-urdu { font-family: 'Noto Nastaliq Urdu', serif; direction: rtl; font-size: 15px; line-height: 2.2; }
+    .msg-time { font-size: 10px; color: var(--text-muted); margin-top: 3px; }
+    .msg.user .msg-time { text-align: right; }
+    .msg.ai .msg-time { padding-left: 42px; }
+    .ai-list { list-style: none; margin-top: 8px; display: flex; flex-direction: column; gap: 5px; }
+    .ai-list li { display: flex; align-items: flex-start; gap: 8px; font-size: 13px; color: var(--text-secondary); }
+    .ai-list li::before { content: '•'; color: var(--primary); font-weight: 900; flex-shrink: 0; }
+    .advice-box { background: var(--light-bg); border: 1px solid var(--border-green); border-radius: 10px; padding: 10px 12px; margin-top: 10px; }
+    .advice-label { font-size: 10px; font-weight: 700; color: var(--primary); letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 4px; }
+    .advice-text { font-size: 12px; color: #166534; line-height: 1.6; }
+    /* TYPING INDICATOR */
+    .typing-indicator { display: flex; align-items: center; gap: 10px; padding: 8px 0; }
+    .typing-bubble { background: white; border: 1px solid var(--border); border-radius: 18px; padding: 12px 16px; display: flex; gap: 5px; }
+    .typing-dot { width: 8px; height: 8px; border-radius: 50%; background: #94a3b8; animation: typingAnim 1.4s ease infinite; }
+    .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+    .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes typingAnim { 0%,60%,100% { transform: translateY(0); opacity: 0.4; } 30% { transform: translateY(-6px); opacity: 1; } }
+    /* INPUT */
+    .chat-input-area { padding: 12px 20px 16px; background: white; border-top: 1px solid var(--border); }
+    .chat-input-row { display: flex; align-items: center; gap: 10px; background: var(--page-bg); border: 1.5px solid var(--border); border-radius: 16px; padding: 10px 14px; transition: border-color 0.2s; }
+    .chat-input-row:focus-within { border-color: var(--primary); background: white; }
+    .chat-grid-btn { width: 28px; height: 28px; border-radius: 8px; background: var(--border); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.15s; border: none; color: var(--text-muted); flex-shrink: 0; }
+    .chat-grid-btn:hover { background: var(--primary); color: white; }
+    .chat-input { flex: 1; border: none; background: none; font-size: 14px; color: var(--text-primary); outline: none; font-family: inherit; }
+    .chat-input::placeholder { color: var(--text-muted); }
+    .mic-btn { width: 30px; height: 30px; border-radius: 50%; background: none; border: none; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text-muted); transition: all 0.15s; }
+    .mic-btn:hover { color: var(--primary); }
+    .send-btn { width: 36px; height: 36px; border-radius: 50%; background: var(--primary); border: none; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; flex-shrink: 0; }
+    .send-btn:hover { background: var(--primary-hover); transform: scale(1.08); }
+    .chat-chips { display: flex; gap: 7px; margin-top: 8px; overflow-x: auto; padding-bottom: 2px; }
+    .chip { flex-shrink: 0; padding: 5px 12px; border-radius: var(--radius-full); background: var(--primary-xlight); color: var(--primary); font-size: 11.5px; font-weight: 600; cursor: pointer; border: none; transition: all 0.2s; }
+    .chip:hover { background: var(--primary); color: white; }
+  </style>
+</head>
+<body>
+<div class="app-layout">
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="sidebar-logo-icon">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M12 2C8.5 2 6 5 6 8c0 2.5 1.5 4.5 3.5 5.5L8 20h8l-1.5-6.5C16.5 12.5 18 10.5 18 8c0-3-2.5-6-6-6z" fill="white"/></svg>
+      </div>
+      <span class="sidebar-logo-text">NutriAI</span>
+    </div>
+    <!-- Active Profile -->
+    <div class="profile-card">
+      <div class="profile-card-header">
+        <div class="profile-avatar" id="sideAvatar">AK</div>
+        <div>
+          <div class="profile-info-name" id="sideName">Ahmed Khan</div>
+          <div class="profile-info-tag" id="sideTag">🩺 Diabetes Control</div>
+        </div>
+      </div>
+      <div class="profile-stats">
+        <div class="profile-stat-row" id="sideStat1Row"><span class="profile-stat-label" id="sideStat1Label">Last Glucose</span><span class="profile-stat-val warning" id="sideStat1Val">124 mg/dL</span></div>
+        <div class="profile-stat-row" id="sideStat2Row"><span class="profile-stat-label" id="sideStat2Label">Today's Sodium</span><span class="profile-stat-val ok" id="sideStat2Val">1.2g / 2.3g</span></div>
+        <div class="profile-stat-row" id="sideStat3Row"><span class="profile-stat-label" id="sideStat3Label">Water Intake</span><span class="profile-stat-val" id="sideStat3Val">1.8L / 3.0L</span></div>
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      <a href="dashboard.html" class="nav-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>Dashboard
+      </a>
+      <a href="meal-plan.html" class="nav-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8h1a4 4 0 010 8h-1"/><path d="M2 8h16v9a4 4 0 01-4 4H6a4 4 0 01-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg>Meal Plan
+      </a>
+      <a href="nutri-ai.html" class="nav-item active">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2C8.5 2 6 5 6 8c0 2.5 1.5 4.5 3.5 5.5L8 20h8l-1.5-6.5C16.5 12.5 18 10.5 18 8c0-3-2.5-6-6-6z"/></svg>NutriAI
+      </a>
+      <a href="health-reports.html" class="nav-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>Health Reports
+      </a>
+    </nav>
+    <!-- Quick Actions -->
+    <div class="quick-actions">
+      <div style="font-size:11px;font-weight:700;color:var(--text-muted);letter-spacing:0.5px;text-transform:uppercase;padding:0 4px;margin-bottom:2px;">Quick Actions</div>
+      <button class="quick-action-btn qa-snack" onclick="sendQuick('Mujhe aaj ke liye ek healthy snack suggest karo diabetes ke liye')">
+        <div class="qa-icon">🍎</div>Suggest a Snack
+      </button>
+      <button class="quick-action-btn qa-hydration" onclick="sendQuick('Mujhe hydration tips do aaj ke liye pani peene ka')">
+        <div class="qa-icon">💧</div>Hydration Tip
+      </button>
+      <button class="quick-action-btn qa-health danger" onclick="sendQuick('Mujhe health issue report karni hai tabiyat theek nahi')">
+        <div class="qa-icon">⚠️</div>Report Health Issue
+      </button>
+    </div>
+    <div class="sidebar-bottom">
+      <button class="upgrade-btn" onclick="window.location='index.html#cta'">⚡ Upgrade to Pro</button>
+      <div class="sidebar-link" onclick="openSettingsModal()">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93l-1.41 1.41M4.93 4.93l1.41 1.41M12 2v2M12 20v2M19.07 19.07l-1.41-1.41M4.93 19.07l1.41-1.41M22 12h-2M4 12H2"/></svg>Settings
+      </div>
+      <div class="sidebar-link" onclick="sendQuick('Mujhe NutriAI ke baare mein help chahiye')">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>Support
+      </div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <div class="main-content">
+    <header class="app-header">
+      <div class="header-logo-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 2C8.5 2 6 5 6 8c0 2.5 1.5 4.5 3.5 5.5L8 20h8l-1.5-6.5C16.5 12.5 18 10.5 18 8c0-3-2.5-6-6-6z" fill="white"/></svg></div>
+      <span class="header-brand">NutriAI</span>
+      <div class="header-divider"></div>
+      <span class="header-title">AI Health Advisor</span>
+      <div class="header-spacer"></div>
+      <div class="header-nav">
+        <button class="header-nav-btn" onclick="toggleLang(this)">English/Urdu</button>
+        <button class="header-nav-btn active" id="ramadanToggleBtn" onclick="toggleRamadan(this)">🌙 Ramadan Mode</button>
+      </div>
+      <div class="header-actions">
+        <button class="icon-btn" title="Clear Chat" onclick="clearChat()">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>
+        </button>
+        <div class="user-chip"><div class="user-avatar">AK</div>Ahmed Khan</div>
+      </div>
+    </header>
+
+    <div class="chat-layout">
+      <div class="chat-main">
+        <!-- CHAT HEADER -->
+        <div class="chat-header">
+          <div class="chat-header-info">
+            <div class="chat-ai-avatar">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M12 2C8.5 2 6 5 6 8c0 2.5 1.5 4.5 3.5 5.5L8 20h8l-1.5-6.5C16.5 12.5 18 10.5 18 8c0-3-2.5-6-6-6z" fill="white"/></svg>
+            </div>
+            <div>
+              <div class="chat-ai-name">NutriAI</div>
+              <div class="chat-ai-status"><div class="status-dot"></div>Online · Health Advisor</div>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;">
+            <button class="chat-action-btn" title="Search messages" onclick="alert('Search mein aapke purane messages milenge — coming soon!')">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            </button>
+            <button class="chat-action-btn" title="Export chat" onclick="exportChat()">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            </button>
+            <button class="chat-action-btn" title="More options">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- MESSAGES -->
+        <div class="chat-messages" id="chatMessages">
+          <div class="chat-date">Today</div>
+          <!-- Initial AI message -->
+          <div class="msg ai">
+            <div class="msg-avatar"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 2C8.5 2 6 5 6 8c0 2.5 1.5 4.5 3.5 5.5L8 20h8l-1.5-6.5C16.5 12.5 18 10.5 18 8c0-3-2.5-6-6-6z" fill="white"/></svg></div>
+            <div>
+              <div class="msg-bubble">
+                Assalam-o-Alaikum, Ahmed! 🌿 Main <strong>NutriAI</strong> hun — aapka personal AI Health Advisor.<br><br>
+                Aapki profile dekhi: Glucose <strong style="color:#ef4444;">124 mg/dL</strong> (thoda elevated), Sodium ✅ acha hai, lekin pani <strong style="color:#f59e0b;">1.8L / 3L</strong> — zyada piyen!<br><br>
+                Kya main aapke liye kuch kar sakta hun? Koi bhi sawal poochein — khana, Ramadan, diabetes, ya koi bhi health topic!
+              </div>
+              <div class="msg-time">10:32 AM</div>
+            </div>
+          </div>
+          <!-- Sample conversation -->
+          <div class="msg user">
+            <div class="msg-user-av">A</div>
+            <div>
+              <div class="msg-bubble"><span class="msg-urdu">کیا مین بریانی کھا سکتا ہوں؟</span></div>
+              <div class="msg-time">10:34 AM</div>
+            </div>
+          </div>
+          <div class="msg ai">
+            <div class="msg-avatar"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 2C8.5 2 6 5 6 8c0 2.5 1.5 4.5 3.5 5.5L8 20h8l-1.5-6.5C16.5 12.5 18 10.5 18 8c0-3-2.5-6-6-6z" fill="white"/></svg></div>
+            <div>
+              <div class="msg-bubble">
+                <strong>🍛 Biryani — Diabetes ke saath:</strong><br><br>Ji haan, kha sakte hain! Lekin yeh tips follow karein:<ul class="ai-list"><li>Portion: Sirf 1 chhoti katori (≈150g cooked rice)</li><li><strong>Aloo bilkul nahi</strong> — blood sugar spike karta hai</li><li>Saath mein kheera raita ya green salad</li><li>Basmati rice — white rice se better (lower GI)</li><li>Khane ke baad 15 min walk zaroor karein</li></ul>
+                <div class="advice-box"><div class="advice-label">💡 Smart Tip</div><div class="advice-text">Biryani mein 50% rice ki jagah phool gobhi mix karein — taste same, carbs aur calories kum!</div></div>
+              </div>
+              <div class="msg-time">10:34 AM</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- INPUT -->
+        <div class="chat-input-area">
+          <div class="chat-chips">
+            <button class="chip" onclick="sendQuick('Sehri ke liye best khana kya hai Ramadan mein')">🌙 Sehri Tips</button>
+            <button class="chip" onclick="sendQuick('Iftar mein kya khana chahiye diabetes mein')">🌅 Iftar Plan</button>
+            <button class="chip" onclick="sendQuick('Mera glucose high hai 124 kya khaun abhi')">🩺 Glucose High</button>
+            <button class="chip" onclick="sendQuick('Weight lose karne ka plan chahiye mujhe')">⚖️ Weight Loss</button>
+            <button class="chip" onclick="sendQuick('Exercise tips diabetes ke liye batao')">🏃 Exercise</button>
+            <button class="chip" onclick="sendQuick('Healthy snack suggest karo')">🍎 Snacks</button>
+          </div>
+          <div class="chat-input-row">
+            <button class="chat-grid-btn" title="Attach report" onclick="alert('Report upload feature: Apna medical report select karein aur NutriAI analyze karega!')">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/></svg>
+            </button>
+            <input type="text" id="chatInput" class="chat-input" placeholder="Apna sawal yahan likhein..." onkeydown="handleKey(event)" maxlength="300"/>
+            <button class="mic-btn" title="Voice input" onclick="startVoice()">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+            </button>
+            <button class="send-btn" id="sendBtn" onclick="sendMessage()">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M22 2L11 13" stroke="white" stroke-width="2.5" stroke-linecap="round"/><path d="M22 2L15 22 11 13 2 9l20-7z" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ===== APP VARIABLES & UI HELPERS =====
+let ramadanActive = true;
+function toggleRamadan(btn) {
+  ramadanActive = !ramadanActive;
+  btn.classList.toggle('active', ramadanActive);
+  btn.textContent = ramadanActive ? '🌙 Ramadan Mode' : 'Ramadan Mode';
+  showToast(ramadanActive ? '🌙 Ramadan Mode ON' : 'Ramadan Mode OFF');
+}
+function toggleLang(btn) {
+  btn.classList.toggle('active');
+  showToast(btn.classList.contains('active') ? 'Urdu Mode Active' : 'English Mode Active');
+}
+function showToast(msg) {
+  let t = document.getElementById('toast');
+  if (!t) {
+    t = document.createElement('div');
+    t.id = 'toast';
+    t.className = 'toast';
+    t.style.cssText = 'position:fixed;bottom:24px;right:24px;background:#1e293b;color:white;padding:12px 20px;border-radius:12px;font-size:13px;font-weight:600;z-index:9999;opacity:0;transform:translateY(10px);transition:all 0.3s;pointer-events:none;';
+    document.body.appendChild(t);
+  }
+  t.textContent = msg;
+  t.classList.add('show');
+  t.style.opacity = '1';
+  t.style.transform = 'translateY(0)';
+  setTimeout(() => {
+    t.classList.remove('show');
+    t.style.opacity = '0';
+    t.style.transform = 'translateY(10px)';
+  }, 2800);
+}
+
+// ===== GEMINI API + FALLBACK AI SYSTEM =====
+const aiDB = {
+  greeting: [
+    `Assalam-o-Alaikum! 🌿 Main <strong>NutriAI</strong> hun. Ahmed bhai, glucose <strong style="color:#ef4444;">124 mg/dL</strong> hai aaj — thoda elevated. Kya aaj ke liye meal plan chahiye ya koi specific sawal hai?`,
+    `Wa Alaikum Assalam! 😊 Kush aamdeed. Aapka sodium aaj ✅ theek hai (1.2g/2.3g), lekin pani zyada piyen — 1.8L sirf, target 3L hai! Kya poochna hai?`,
+    `Hello Ahmed! 🌱 Ramadan mubarak! Aaj Ramadan Mode active hai. Sehri 4:42 AM aur Iftar 6:21 PM hai. Fasting ke dauran koi advice chahiye?`
+  ],
+  thanks: [
+    `Aapka shukriya! 🙏 Apni sehat ka khayal rakhein — pani piyen aur glucose monitor karte rahein. Koi aur sawal ho to zaroor puchein!`,
+    `Jazak Allah Khair! 🌿 Remember: Sahi khaana hi best dawa hai. Glucose aur pani ka khayal rakhein aaj. Kuch aur?`,
+    `You're welcome! Aaj 1.2L pani aur baaki roz peena hai — dashboard pe nazar rakhein. Koi aur help?`
+  ],
+  biryani: [
+    `<strong>🍛 Biryani — Diabetes ke saath:</strong><br><br>Ji haan, biryani kha sakte hain!<ul class="ai-list"><li><strong>Portion:</strong> Sirf 1 chhoti katori (≈150g)</li><li><strong>Aloo bilkul nahi</strong> — blood sugar spike karta hai</li><li>Saath mein kheera raita ya salad</li><li>Basmati rice — lower GI (50-58 vs 72)</li><li>Khane ke baad 15 min walk karein</li></ul><div class="advice-box"><div class="advice-label">💡 Smart Trick</div><div class="advice-text">50% rice ki jagah phool gobhi mix karein — taste same, carbs aur calories kum!</div></div>`,
+    `<strong>🍛 Biryani Tips for Blood Sugar:</strong><br><br><ul class="ai-list"><li>Pehle salad khayein → phir biryani — spike rokta hai</li><li>Chicken biryani > Beef biryani for glucose control</li><li>1 plate, dawat mein zyada mat lein</li><li>Meetha pani ya cola bilkul nahi — unsweetened lassi theek hai</li></ul><div class="advice-box"><div class="advice-label">⚠️ Warning</div><div class="advice-text">Biryani ke 2 ghante baad glucose check karein. Agar 180+ ho to next meal extra light rakhein.</div></div>`
+  ],
+  karahi: [
+    `<strong>🍗 Chicken Karahi — Health Tips:</strong><br><br>Karahi ek behtareen choice hai!<ul class="ai-list"><li><strong>Bone-in chicken</strong> prefer karein — less processed</li><li>Tel sirf <strong>1-2 tablespoon</strong> — zyada se cholesterol barhta hai</li><li>Tamatar + adrak + lehsan = natural anti-inflammatory</li><li>2 whole wheat rotis ke saath khayein</li><li>Cream ya makkhan mat daalein</li></ul><div class="advice-box"><div class="advice-label">💡 Healthy Version</div><div class="advice-text">Olive oil use karein, extra tomatoes add karein — lycopene se heart health bhi improve hoti hai!</div></div>`,
+    `<strong>🍗 Karahi Nutrition Guide:</strong><br><br><ul class="ai-list"><li>100g chicken = 31g protein — muscles ke liye excellent</li><li>Garam masala blood circulation improve karta hai</li><li>Oil-free karahi try karein — steam cooking</li><li>Saath mein kachumber salad zaroor rakhein</li></ul><div class="advice-box"><div class="advice-label">💡 Pro Tip</div><div class="advice-text">Karahi mein palak (spinach) add karein — iron aur fiber milega, taste bhi acha hoga!</div></div>`
+  ],
+  bread: [
+    `<strong>🫓 Roti/Paratha Guide:</strong><br><br><ul class="ai-list"><li>✅ <strong>Whole wheat roti</strong> = best choice (high fiber, low GI)</li><li>⚠️ <strong>Paratha (1 tbsp oil)</strong> = theek hai, occasionally</li><li>❌ <strong>Naan/Maida</strong> = avoid — high glycemic index</li><li>❌ <strong>Puri/Bhatura</strong> = kabhi kabhi, chhoti quantity</li><li>Din mein <strong>2-3 small rotis</strong> enough hain</li></ul><div class="advice-box"><div class="advice-label">💡 Better Alternative</div><div class="advice-text">Multi-grain atta try karein (wheat + oat + barley) — blood sugar spike bahut kam hoti hai aur fiber zyada!</div></div>`,
+    `<strong>🫓 Paratha Guide for Diabetics:</strong><br><br><ul class="ai-list"><li>Ghee ki jagah <strong>olive oil ya canola oil</strong> use karein</li><li>Stuffed: <strong>mooli, palak, gobhi</strong> (aloo se nahi!)</li><li>Saath mein <strong>plain yogurt</strong> (no sugar) rakhein</li><li>Ek anda ke saath = complete balanced Sehri meal</li></ul><div class="advice-box"><div class="advice-label">⚠️ Limit</div><div class="advice-text">Din mein 1-2 parathas max. Zyada ghee/oil se cholesterol aur weight dono barhte hain.</div></div>`
+  ],
+  daal: [
+    `<strong>🥣 Daal — Diabetes ka Behtareen Dost!</strong><br><br><ul class="ai-list"><li><strong>Masoor daal</strong> — lowest GI, best for blood sugar control</li><li><strong>Moong daal</strong> — lightest, excellent for digestion</li><li><strong>Chana daal</strong> — highest protein (8g per 100g)</li><li>Daal soup bana kar piyen — filling aur low calorie</li><li>Haldi add karein — anti-inflammatory properties</li></ul><div class="advice-box"><div class="advice-label">✅ Great Choice!</div><div class="advice-text">Roz ek katori daal = blood sugar stabilize + protein + fiber. Diabetes ke liye perfect food! Roz khayein.</div></div>`
+  ],
+  rice: [
+    `<strong>🍚 Rice/Chawal — Diabetes Mein:</strong><br><br><ul class="ai-list"><li><strong>Basmati rice</strong> prefer karein (GI 50-58 vs white 72)</li><li><strong>Brown rice</strong> = even better (GI ~50, more fiber)</li><li>Portion: <strong>½ cup cooked rice</strong> per meal max</li><li>Rice + daal = complete protein meal</li><li>Pakane se pehle 30 min bhigo dein — resistant starch barhti hai</li></ul><div class="advice-box"><div class="advice-label">💡 Blood Sugar Hack</div><div class="advice-text">Rice pakane ke baad fridge mein rakhein, thanda karke khayein — resistant starch 3x zyada, glucose spike 20% kam!</div></div>`
+  ],
+  drinks: [
+    `<strong>☕ Chai aur Drinks Guide:</strong><br><br><ul class="ai-list"><li>☕ <strong>Chai:</strong> Din mein max 2 cups, chini bilkul nahi — stevia use karein</li><li>🍵 <strong>Green tea:</strong> Best choice — antioxidants + blood sugar stabilize</li><li>☕ <strong>Black coffee:</strong> 1 cup theek hai — chini nahi</li><li>🥛 <strong>Lassi (plain, unsweetened):</strong> Probiotic aur filling</li><li>🚫 <strong>Cola, juices, sweetened drinks:</strong> Bilkul avoid!</li></ul><div class="advice-box"><div class="advice-label">🌿 Best Morning Drink</div><div class="advice-text">Subah khali pait: 1 glass warm water + lemon = liver detox + blood sugar regulation. Sone se pehle: chamomile tea = better sleep!</div></div>`
+  ],
+  sehri: [
+    `<strong>🌙 Sehri Plan — Optimal Nutrition:</strong><br><br>Sehri mein yeh zaroor shaamil karein:<ul class="ai-list"><li>🥚 <strong>2 Ande (boiled/scrambled)</strong> — protein se din bhar bhook nahi lagti</li><li>🥣 <strong>Dalia/Oatmeal</strong> — complex carbs, slow energy release</li><li>🥛 <strong>1 glass plain doodh</strong> ya yogurt</li><li>🍌 <strong>1 chhota phal</strong> — natural vitamins</li><li>💧 <strong>2-3 glasses pani</strong> — hydration ke liye zaroori</li></ul><div class="advice-box"><div class="advice-label">⚠️ Diabetes Special</div><div class="advice-text">Sehri mein glucose check zaroor karein! Zyada meetha bilkul nahi. Sehri bilkul last minute mein karein (azaan se 10-15 min pehle).</div></div>`,
+    `<strong>🌙 Best Sehri Meal for Diabetics:</strong><br><br><ul class="ai-list"><li>Option A: 1 whole wheat paratha + 1 anda + 1 tbsp olive oil</li><li>Option B: Oatmeal + walnuts/almonds + 1 tsp honey</li><li>Option C: Greek yogurt (plain) + 1 apple + 10 almonds</li><li>Hamesha: 3-4 glasses pani + multivitamin</li></ul><div class="advice-box"><div class="advice-label">⏰ Timing</div><div class="advice-text">Sehri late karein (azaan se 15 min pehle) — fasting period chota hoga, blood sugar stable rahegi, energy zyada!</div></div>`
+  ],
+  iftar: [
+    `<strong>🌅 Iftar Plan — Healthy Breaking Fast:</strong><br><br>Sahi tartib mein karein:<ul class="ai-list"><li>🟤 <strong>3 Khajoor + 2 glasses pani</strong> — pehle hamesha</li><li>🥣 <strong>15-20 min break</strong> — phir daal soup ya vegetable soup</li><li>🕐 <strong>Aur 15 min baad</strong> — main meal</li><li>🥗 Main meal: protein + 1-2 roti + salad</li><li>🚫 Avoid: Samosa, pakora, jalebi, mithai — glucose 300+ ho sakta hai!</li></ul><div class="advice-box"><div class="advice-label">⚠️ Diabetes Warning</div><div class="advice-text">Iftar ke 2 ghante baad glucose check karein. Meetha (sharbat, gulab jamun) bilkul nahi — blood sugar spike bahut tez hoti hai!</div></div>`,
+    `<strong>🌅 Healthy Iftar Menu (Diabetes):</strong><br><br><ul class="ai-list"><li>Avoid: Samosa, pakora, jalebi, mithai</li><li>Prefer: Chaat (meethi chutney ke bina), fruit salad, dahi bhalla (no sugar)</li><li>Pani 2-3 ghante mein spread karein</li><li>Tarawih ke baad halki walk — excellent glucose control!</li></ul><div class="advice-box"><div class="advice-label">💡 Perfect Iftar</div><div class="advice-text">3 khajoor + pani → 20 min break → daal soup → chicken + 1 roti + salad → Dessert: 1 chhoti khajoor. Ye glucose control mein rakhega!</div></div>`
+  ],
+  fasting: [
+    `<strong>🌙 Ramadan Fasting — Diabetes Safety Guide:</strong><br><br><ul class="ai-list"><li><strong>Doctor se zaroor baat karein</strong> pehle — insulin/medicine adjust hogi</li><li>Glucose check: <strong>Sehri ke baad, dopahar, Iftar se 1 ghanta pehle</strong></li><li><strong>Roza tod dein agar:</strong> Glucose &lt;70 ya &gt;300 mg/dL ho</li><li>Symptoms mein: chakkar, paseena, kaanpna = low sugar! Khajoor + pani foran lo</li><li>Khajoor + juice hamesha paas rakhein emergency ke liye</li></ul><div class="advice-box"><div class="advice-label">⚠️ Safety First</div><div class="advice-text">Islam mein diabetics ko roza na rakhne ki ijaazat hai agar sehat kharab ho. Sehat pehle, Roza baad mein! Doctor se consult zaroor karein.</div></div>`
+  ],
+  diabetes: [
+    `<strong>🩺 Diabetes Nutrition — Complete Guide:</strong><br><br><ul class="ai-list"><li>✅ <strong>Eat:</strong> Whole grains, vegetables, lean protein, nuts, daal</li><li>❌ <strong>Avoid:</strong> White rice, maida, sugar, sweetened drinks, processed food</li><li>⏰ <strong>Timing:</strong> Har 3-4 ghante mein chhota meal better</li><li>📊 <strong>Glucose target:</strong> Fasting 80-130, Post-meal 2hr &lt;180</li><li>🚶 <strong>Walk 30 min:</strong> Roz — insulin sensitivity +40%</li></ul><div class="advice-box"><div class="advice-label">🌿 Super Foods for Diabetes</div><div class="advice-text">Karela juice (subah), methi seeds (raat ko paani mein bhigo, subah piyen), cinnamon (darchini) in chai — yeh sab blood sugar naturally control karte hain!</div></div>`,
+    `<strong>🩺 Aapka Glucose 124 mg/dL — Action Plan:</strong><br><br><ul class="ai-list"><li>Ye "Pre-Diabetes" range hai — abhi control kar sakte hain!</li><li>Aaj: Zyada pani piyen (aapne sirf 1.8L piya, target 3L)</li><li>Khane mein fiber zyada: daal, sabzi, whole wheat</li><li>Sugar bilkul mat khayein aaj</li><li>Sham ko 20-30 min walk karein</li></ul><div class="advice-box"><div class="advice-label">💊 Medical Note</div><div class="advice-text">Apni diabetes medication time pe lein. Kabhi bhi apni marzi se dose mat badlein. Main sirf nutrition advisor hun — serious decisions doctor se karein!</div></div>`
+  ],
+  bp: [
+    `<strong>❤️ Blood Pressure Control Diet:</strong><br><br>DASH diet follow karein:<ul class="ai-list"><li><strong>Namak (sodium) kam karein:</strong> &lt;2,300mg/day</li><li><strong>Potassium zyada:</strong> Banana, palak, yogurt</li><li><strong>Magnesium:</strong> Almonds, dark chocolate (70%+)</li><li>Aapka sodium aaj: 1.2g ✅ — excellent!</li><li><strong>Avoid:</strong> Processed food, pickle, papad, canned food</li></ul><div class="advice-box"><div class="advice-label">💡 Natural BP Lowering</div><div class="advice-text">Subah khali pait 1 lahsun ki kali + pani = natural BP control. Hibiscus tea (gurhal) scientifically proven BP reduce karta hai!</div></div>`
+  ],
+  heart: [
+    `<strong>❤️ Heart Health Nutrition:</strong><br><br><ul class="ai-list"><li><strong>Omega-3:</strong> Salmon, sardines, walnuts, flaxseed (alsi)</li><li><strong>Saturated fat kam karein:</strong> Red meat, ghee, butter limit</li><li><strong>Trans fat avoid:</strong> Bakery items, fried food</li><li><strong>Fiber zyada:</strong> Oats, beans, fruits — LDL cholesterol kam karta hai</li><li><strong>Olive oil</strong> cooking ke liye use karein</li></ul><div class="advice-box"><div class="advice-label">🌿 Heart Superfoods</div><div class="advice-text">Roz: 30g almonds + 1 apple + oatmeal breakfast = powerful cholesterol-lowering combo! Green tea bhi dil ke liye acha hai.</div></div>`
+  ],
+  weight: [
+    `<strong>⚖️ Weight Management Plan:</strong><br><br><ul class="ai-list"><li><strong>Calorie deficit:</strong> 500 kcal/day = 0.5kg per week loss</li><li><strong>Aapki daily calorie:</strong> ~1,840 kcal maintain, ~1,340 kcal lose</li><li><strong>Protein zyada:</strong> Bhook kam, muscle maintain</li><li><strong>Sugar bilkul nahi:</strong> Sabse zyada weight ka zariya</li><li><strong>10,000 steps roz:</strong> 300-400 kcal burn</li></ul><div class="advice-box"><div class="advice-label">💡 Quick Start</div><div class="advice-text">Sirf ek cheez change karein pehle: Chini wali chai chhod dein — 2-3 kg weight 2 mahine mein aasani se kam ho sakta hai!</div></div>`,
+    `<strong>⚖️ Weight Loss for Diabetics:</strong><br><br><ul class="ai-list"><li>5-7% weight loss = blood sugar significant improvement</li><li>Slowly khayein — 20 min lagayein meal mein, zyada satisfaction</li><li>Plate method: ½ vegetables, ¼ protein, ¼ carbs</li><li>Sleep 7-8 hours zaroori — kam neend = zyada bhook hormones</li><li>Crash diet mat karein — blood sugar unstable hoti hai</li></ul><div class="advice-box"><div class="advice-label">🎯 Realistic Goal</div><div class="advice-text">0.5-1kg per week = healthy pace. Ramadan mein bhi weight loss possible hai smart eating se!</div></div>`
+  ],
+  exercise: [
+    `<strong>🏃 Exercise Plan for Diabetics:</strong><br><br><ul class="ai-list"><li>🚶 <strong>Morning walk 30 min:</strong> Insulin sensitivity 40% improve</li><li>💪 <strong>Strength training 2x/week:</strong> Muscle glucose use karte hain</li><li>🍽️ <strong>Post-meal walk 10-15 min:</strong> Blood sugar spike rokta hai</li><li>📊 <strong>Glucose check:</strong> Exercise se pehle aur baad mein</li><li>⚠️ <strong>Stop if:</strong> Glucose &lt;100 mg/dL ho to exercise mat karein</li></ul><div class="advice-box"><div class="advice-label">💡 Best Time</div><div class="advice-text">Ramadan mein Iftar ke 1 ghante baad walk karein — best time for blood sugar control + weight management!</div></div>`
+  ],
+  stomach: [
+    `<strong>🫃 Digestive Health Tips:</strong><br><br><ul class="ai-list"><li><strong>Probiotic foods:</strong> Dahi/yogurt (plain), lassi roz khayein</li><li><strong>Fiber zyada:</strong> Sabzi, phal, whole grains</li><li><strong>Pani zyada piyen:</strong> 8-10 glasses — digestion smooth</li><li><strong>Avoid:</strong> Zyada masala, oily food</li><li><strong>Adrak ki chai:</strong> Nausea aur gas ka natural ilaj</li></ul><div class="advice-box"><div class="advice-label">🌿 Natural Remedy</div><div class="advice-text">Subah khali pait: 1 tsp zeera powder + 1 glass warm water = acidity aur gas ka natural ilaj! Papita (papaya) roz khayein — digestion excellent.</div></div>`
+  ],
+  headache: [
+    `<strong>🤕 Headache aur Nutrition Link:</strong><br><br>Zyada tar headache ka razzia:<ul class="ai-list"><li><strong>Dehydration:</strong> Abhi 2 glasses pani piyen! (aap 1.8L par hain)</li><li><strong>Low blood sugar:</strong> Glucose check karein — 70 se kam ho to kuch khayein</li><li><strong>Caffeine withdrawal:</strong> Chai gradually kam karein</li><li><strong>Magnesium kam:</strong> Almonds, dark chocolate, palak khayein</li></ul><div class="advice-box"><div class="advice-label">💡 Quick Relief</div><div class="advice-text">2 glasses thanda pani + adrak ki chai (no sugar) + 10 min rest. 30 min mein theek nahi hota to doctor se milein!</div></div>`
+  ],
+  fatigue: [
+    `<strong>😴 Thakaan aur Kamzori — Fix Karein:</strong><br><br><ul class="ai-list"><li><strong>Iron check:</strong> Anemia common cause — palak, masoor daal, red meat</li><li><strong>Vitamin B12:</strong> Doodh, anda, meat — B12 deficiency se extreme thakaan</li><li><strong>Vitamin D:</strong> 15 min sunlight roz + doodh — low D se tiredness</li><li><strong>Breakfast zaroor khayein:</strong> Nahi khane se sara din thakaan</li><li><strong>Diabetes:</strong> High glucose bhi fatigue ka major cause hai</li></ul><div class="advice-box"><div class="advice-label">⚡ Energy Booster</div><div class="advice-text">Instant energy: 1 banana + 10 almonds + 1 glass doodh. Long-term: oatmeal breakfast, multivitamin, 7-8 hrs sleep!</div></div>`
+  ],
+  snack: [
+    `<strong>🍎 Healthy Snacks for Diabetics:</strong><br><br>Top choices:<ul class="ai-list"><li>🥜 <strong>10-12 Almonds</strong> — healthy fat + protein, blood sugar stable rakhte hain</li><li>🥒 <strong>Cucumber + hummus</strong> — filling aur low calorie</li><li>🧀 <strong>1 boiled anda</strong> — 6g protein, zero carbs</li><li>🍎 <strong>1 chhota apple</strong> — fiber aur quercetin</li><li>🥛 <strong>Plain yogurt (100g)</strong> — probiotic + protein</li></ul><div class="advice-box"><div class="advice-label">⏰ Timing</div><div class="advice-text">Meals ke 2-3 ghante baad chhota snack karein — blood sugar crash prevent karta hai. Ramadan mein Iftar ke baad nuts aur fruits best snack!</div></div>`,
+    `<strong>🍎 Top 5 Blood Sugar Safe Snacks:</strong><br><br><ul class="ai-list"><li>🫘 <strong>Roasted chana (½ cup)</strong> — 6g protein, 5g fiber</li><li>🥑 <strong>Avocado (½)</strong> — healthy fat, zero blood sugar spike</li><li>🍓 <strong>1 handful berries</strong> — low GI, high antioxidants</li><li>🥕 <strong>Gajar sticks + hummus</strong> — fiber + protein combo</li><li>🧀 <strong>Paneer slice (50g)</strong> — protein + calcium</li></ul><div class="advice-box"><div class="advice-label">❌ Avoid These Traps</div><div class="advice-text">Fruit juice, granola bars, flavored yogurt — yeh sab secretly blood sugar spike karte hain! Always check sugar on labels.</div></div>`
+  ],
+  water: [
+    `<strong>💧 Hydration Guide — Aapke liye:</strong><br><br>Aaj aapne 1.8L piya — 1.2L aur baaki hai!<ul class="ai-list"><li><strong>Daily target:</strong> 3L (aapke diabetes ke liye zyada zaroori)</li><li><strong>High glucose pe zyada piyen:</strong> Kidneys glucose filter mein pani use karti hain</li><li><strong>Lemon water:</strong> Vitamin C + hydration — morning best</li><li><strong>Coconut water:</strong> 1 glass OK — natural electrolytes</li><li><strong>Ramadan mein:</strong> Iftar se Sehri tak 8 glasses spread karein</li></ul><div class="advice-box"><div class="advice-label">💡 Hydration Hack</div><div class="advice-text">Har ek ghante mein 1 alarm — "Pani Piyen!" Dehydration = higher blood sugar. Aaj 1.2L aur peena zaroor hai!</div></div>`
+  ],
+  fruits: [
+    `<strong>🍎 Fruits for Diabetics — Yes/No:</strong><br><br><ul class="ai-list"><li>✅ <strong>OK:</strong> Apple (seb), Pear (nashpati), Guava (amrood), Jaamun, Berries</li><li>⚠️ <strong>Limit karein:</strong> Banana (1 chhota/day), Mango (aam — kabhi kabhi)</li><li>❌ <strong>Avoid:</strong> Angoor (grapes), Chikoo, Fresh juice (spike!)</li><li><strong>Best time:</strong> Meal ke saath khana better than alone</li><li><strong>Portion:</strong> 1 medium fruit = 1 serving</li></ul><div class="advice-box"><div class="advice-label">🌟 Best Fruits for Diabetics</div><div class="advice-text">Jaamun = scientifically proven blood sugar reducer! Amrood (guava) = low GI + high fiber. 1 apple roz = cholesterol + blood sugar dono control!</div></div>`
+  ],
+  vegetables: [
+    `<strong>🥦 Best Vegetables for Diabetes:</strong><br><br><ul class="ai-list"><li>⭐ <strong>Karela (Bitter Gourd):</strong> Natural insulin! Juice ya sabzi roz</li><li>🌿 <strong>Palak (Spinach):</strong> Iron + magnesium + fiber — roz khayein</li><li>🥦 <strong>Broccoli:</strong> Sulforaphane = insulin resistance improve</li><li>🧅 <strong>Pyaz + Lehsan:</strong> Glucose naturally kum karte hain</li><li>🍅 <strong>Tamatar:</strong> Lycopene = heart health + low GI</li></ul><div class="advice-box"><div class="advice-label">💡 Daily Goal</div><div class="advice-text">Roz 5 servings vegetables (half plate). Tip: subah palak anda, dopahar salad, raat sabzi curry = done! Non-starchy veggies unlimited khayein.</div></div>`
+  ],
+  protein: [
+    `<strong>💪 Protein Guide for Diabetics:</strong><br><br><ul class="ai-list"><li><strong>Daily need:</strong> 100-120g protein (0.8-1g per kg body weight)</li><li>✅ <strong>Best sources:</strong> Chicken breast, fish (machli), anda, daal, yogurt</li><li><strong>Protein har meal mein:</strong> Blood sugar stable rakhta hai</li><li><strong>Fish (machli):</strong> Omega-3 + protein — diabetes + heart dono ke liye</li><li><strong>Red meat:</strong> Week mein 1-2 baar max, lean cuts prefer karein</li></ul><div class="advice-box"><div class="advice-label">🌿 Daily Plan</div><div class="advice-text">Subah 2 ande + doopahar machli/chicken + raat daal — yeh combination protein target achieve karega aur blood sugar stable rakhega!</div></div>`
+  ],
+  vitamins: [
+    `<strong>💊 Vitamins for Diabetics:</strong><br><br><ul class="ai-list"><li><strong>Vitamin D:</strong> 90% Pakistanis deficient! 15 min sunlight + doodh + fatty fish</li><li><strong>B12:</strong> Metformin se deficiency — anda, doodh, meat</li><li><strong>Magnesium:</strong> Insulin sensitivity improve — almonds, palak</li><li><strong>Zinc:</strong> Wound healing + immune — beef, pumpkin seeds</li><li><strong>Chromium:</strong> Blood sugar regulation — broccoli, oats</li></ul><div class="advice-box"><div class="advice-label">⚠️ Important</div><div class="advice-text">Supplements lene se pehle blood test zaroor karwayein. Over-dose harmful ho sakti hai. Main sirf food sources guide kar sakta hun — supplements doctor ki salah par!</div></div>`
+  ],
+  sleep: [
+    `<strong>😴 Sleep aur Blood Sugar Connection:</strong><br><br><ul class="ai-list"><li><strong>7-8 hours sleep zaroori:</strong> Kam neend = insulin resistance +40%</li><li><strong>Late night khana avoid:</strong> Sone se 2-3 ghante pehle khana band</li><li><strong>Chamomile tea:</strong> Sone se pehle — natural sleep aid</li><li><strong>High glucose raat ko:</strong> Neend disruption normal hai — control karein</li><li><strong>Magnesium-rich dinner:</strong> Palak, almonds — natural sleep hormone support</li></ul><div class="advice-box"><div class="advice-label">🌙 Ramadan Sleep Tip</div><div class="advice-text">Tarawih ke baad sone ki koshish karein. Sehri ke liye alarm set karein aur wapas so jayein. Din mein 1-2 ghante napping OK hai Ramadan mein!</div></div>`
+  ],
+  suggestion: [
+    `<strong>🍽️ Personalized Meal Plan — Ahmed Khan (Diabetes Control):</strong><br><br><strong>🌙 Sehri (4:00 AM):</strong><ul class="ai-list"><li>2 boiled ande + 1 whole wheat roti + 1 tbsp olive oil</li><li>1 cup plain yogurt + 3-4 glasses pani</li></ul><strong>🌅 Iftar (6:21 PM):</strong><ul class="ai-list"><li>3 khajoor + 2 glasses pani (PEHLE)</li><li>15-20 min break → daal soup</li><li>Main meal: chicken + 1-2 whole wheat roti + salad</li></ul><div class="advice-box"><div class="advice-label">📊 Daily Targets</div><div class="advice-text">Calories: 1,600-1,800 | Protein: 100g | Fiber: 30g | Water: 3L | Sodium: &lt;2g | Walk: 30 min</div></div>`
+  ],
+  health_issue: [
+    `<strong>🚑 Health Issue — Main Help Karta Hun:</strong><br><br>Apni health issue detail mein batayein:<ul class="ai-list"><li>Kaunsa symptom hai? (chakkar, sir dard, pait dard, paseena)</li><li>Kab se hai? (aaj, ya chronic?)</li><li>Aapka glucose abhi kya hai?</li><li>Koi naya khaana khaya unusual?</li></ul><div class="advice-box"><div class="advice-label">🆘 Emergency Signs</div><div class="advice-text">⚠️ Glucose &lt;70 → Foran khajoor/juice lo! ⚠️ Glucose >300 + nausea → Doctor call karein! ⚠️ Chest pain → FORAN hospital! Main nutrition AI hun — emergency mein doctor zaroori hai!</div></div>`
+  ],
+  heavy_food: [
+    `<strong>🍲 Nihari/Haleem/Paya Guide:</strong><br><br><ul class="ai-list"><li><strong>Nihari:</strong> Oil bahut zyada — chhoti bowl, raat ko nahi</li><li><strong>Haleem:</strong> Actually good! High protein + fiber (daal + meat). Ghee upar se mat daalein</li><li><strong>Paya:</strong> Collagen rich — joints ke liye acha, oil filter kar lein</li><li>Frequency: Week mein max 1 baar</li></ul><div class="advice-box"><div class="advice-label">💡 Make it Healthier</div><div class="advice-text">Nihari mein extra ghee mat daalein. Khane se pehle paper towel se upar ki oil absorb karein. Saath mein green salad + plain raita zaroor rakhein!</div></div>`
+  ],
+  help: [
+    `<strong>ℹ️ NutriAI — Kaise Use Karein:</strong><br><br>Main in topics pe help kar sakta hun:<ul class="ai-list"><li>🍛 Pakistani food advice (biryani, karahi, paratha, daal, etc.)</li><li>🌙 Ramadan nutrition (sehri, iftar plans)</li><li>🩺 Diabetes, BP, heart health management</li><li>⚖️ Weight loss aur exercise tips</li><li>💧 Hydration aur vitamins</li><li>😴 Sleep, digestion, fatigue</li></ul><div class="advice-box"><div class="advice-label">💡 Tip</div><div class="advice-text">Neeche ke chips (Sehri Tips, Iftar Plan, etc.) click karein quick answers ke liye! Ya apna sawal seedha type karein.</div></div>`
+  ],
+  default: [
+    `Hmm, main samjha nahi bilkul! 😊 Kripya thoda aur detail mein batayein. Jaise:<ul class="ai-list"><li>Koi specific khana (biryani, paratha, karahi)?</li><li>Health concern (diabetes, weight, thakaan)?</li><li>Ramadan nutrition (sehri, iftar)?</li><li>Exercise ya lifestyle tips?</li></ul><div class="advice-box"><div class="advice-label">💡 Yaad Dilata Hun</div><div class="advice-text">Aapka glucose 124 mg/dL hai — aaj zyada pani piyen aur fiber zyada khayein. Neeche chips use karein quick questions ke liye!</div></div>`,
+    `Acha sawal hai, lekin main thoda aur detail chahta hun! 🌿 Kya aap in mein se kuch poochna chahte hain?<ul class="ai-list"><li>Pakistani foods ke baare mein advice</li><li>Diabetes-friendly meals ka plan</li><li>Ramadan sehri/iftar nutrition</li><li>Weight management tips</li></ul><div class="advice-box"><div class="advice-label">Reminder</div><div class="advice-text">Main sirf AI nutrition advisor hun — serious medical decisions ke liye apne doctor se zaroor milein. Aapki sehat sabse pehle!</div></div>`
+  ]
+};
+
+// Rotation counters per category
+const rotCounters = {};
+
+function detectCategory(text) {
+  const t = text.toLowerCase();
+  const map = [
+    { keys: ['hello','hi','salam','assalam','helo','hey','namaste','السلام','اسلام'], cat: 'greeting' },
+    { keys: ['thanks','shukriya','thank','shukria','jazak','marhaba'], cat: 'thanks' },
+    { keys: ['biryani'], cat: 'biryani' },
+    { keys: ['karahi','curry','kofte','kofta'], cat: 'karahi' },
+    { keys: ['paratha','chapati','roti','naan','puri','bhatura','bread','flatbread'], cat: 'bread' },
+    { keys: ['daal','dal','lentil','masoor','moong','chana'], cat: 'daal' },
+    { keys: ['rice','chawal','pulao','khichdi'], cat: 'rice' },
+    { keys: ['chai','tea','coffee','qahwa','lassi','drink'], cat: 'drinks' },
+    { keys: ['nihari','haleem','paya','qorma','korma'], cat: 'heavy_food' },
+    { keys: ['fruit','phal','apple','banana','mango','aam','guava','amrood','jaamun','berry'], cat: 'fruits' },
+    { keys: ['vegetable','sabzi','spinach','palak','karela','broccoli','tamatar'], cat: 'vegetables' },
+    { keys: ['sehri','sehr','sahoor','suhoor'], cat: 'sehri' },
+    { keys: ['iftar','aftari','breaking fast'], cat: 'iftar' },
+    { keys: ['roza','fasting','ramadan','ramazan','fast','roze'], cat: 'fasting' },
+    { keys: ['diabetes','sugar','glucose','insulin','diabetic','blood sugar'], cat: 'diabetes' },
+    { keys: ['bp','blood pressure','hypertension'], cat: 'bp' },
+    { keys: ['cholesterol','heart','dil','cardiac'], cat: 'heart' },
+    { keys: ['weight','fat','motapa','slim','lose','vajan','mota','patla'], cat: 'weight' },
+    { keys: ['exercise','walk','gym','workout','jogging','yoga','running'], cat: 'exercise' },
+    { keys: ['stomach','pait','acidity','constipation','qabz','gas','bloating'], cat: 'stomach' },
+    { keys: ['headache','sir dard','migraine','head pain'], cat: 'headache' },
+    { keys: ['tired','fatigue','thakaan','weak','kamzori','energy','thaka'], cat: 'fatigue' },
+    { keys: ['snack','bhook','hungry','bhooky','snacks'], cat: 'snack' },
+    { keys: ['water','pani','hydration','dehydrated','thirst','pyas'], cat: 'water' },
+    { keys: ['protein','muscle','gosht','meat','beef','mutton'], cat: 'protein' },
+    { keys: ['vitamin','supplement','calcium','iron','zinc','b12','magnesium'], cat: 'vitamins' },
+    { keys: ['sleep','neend','insomnia','jagana'], cat: 'sleep' },
+    { keys: ['suggest','recommend','batao','kya khayein','meal plan','diet plan','plan chahiye'], cat: 'suggestion' },
+    { keys: ['health issue','problem','bimari','sick','takleef','tabiyat'], cat: 'health_issue' },
+    { keys: ['help','madad','guide','kaise','how to'], cat: 'help' },
+  ];
+  for (const m of map) {
+    if (m.keys.some(k => t.includes(k))) return m.cat;
+  }
+  return 'default';
+}
+
+function getAIResponse(text) {
+  const cat = detectCategory(text);
+  const pool = aiDB[cat] || aiDB.default;
+  if (!rotCounters[cat]) rotCounters[cat] = 0;
+  const resp = pool[rotCounters[cat] % pool.length];
+  rotCounters[cat]++;
+  return resp;
+}
+
+function nowTime() {
+  return new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
+}
+
+function makeAIBubble() {
+  return `<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 2C8.5 2 6 5 6 8c0 2.5 1.5 4.5 3.5 5.5L8 20h8l-1.5-6.5C16.5 12.5 18 10.5 18 8c0-3-2.5-6-6-6z" fill="white"/></svg>`;
+}
+
+// ===== SHARED DATABASE HELPERS =====
+function initNutriDatabase() {
+  const defaultProfiles = {
+    ali: {
+      id: 'ali',
+      name: 'Ali Khan',
+      welcome: 'As-salamu Alaykum, Ali 👋',
+      avatar: 'AK',
+      age: 34,
+      gender: 'Male',
+      relation: 'Head of Family',
+      condition: 'healthy',
+      condText: '✅ Healthy',
+      condClass: 'cond-healthy',
+      weight: 82.3,
+      height: 178,
+      calories: 840,
+      total: 1840,
+      prot: 45,
+      protT: 120,
+      carb: 110,
+      carbT: 290,
+      fat: 28,
+      fatT: 65,
+      glasses: 3,
+      waterGoal: 3,
+      statusLabel: 'Daily Cal',
+      statusVal: '1,840'
+    },
+    zoya: {
+      id: 'zoya',
+      name: 'Zoya Khan',
+      welcome: 'Good Morning, Zoya! 😊',
+      avatar: 'ZK',
+      age: 30,
+      gender: 'Female',
+      relation: 'Spouse',
+      condition: 'healthy',
+      condText: '✅ Healthy',
+      condClass: 'cond-healthy',
+      weight: 62.1,
+      height: 162,
+      calories: 620,
+      total: 1600,
+      prot: 55,
+      protT: 100,
+      carb: 80,
+      carbT: 220,
+      fat: 22,
+      fatT: 55,
+      glasses: 5,
+      waterGoal: 2.5,
+      statusLabel: 'Daily Cal',
+      statusVal: '1,600'
+    },
+    ahmed: {
+      id: 'ahmed',
+      name: 'Ahmed Khan',
+      welcome: 'As-salamu Alaykum, Ahmed 👋',
+      avatar: 'AK',
+      age: 62,
+      gender: 'Male',
+      relation: 'Father',
+      condition: 'diabetes',
+      condText: '🩺 Diabetes Control',
+      condClass: 'cond-diabetes',
+      weight: 78.4,
+      height: 170,
+      calories: 1050,
+      total: 1840,
+      prot: 70,
+      protT: 120,
+      carb: 140,
+      carbT: 290,
+      fat: 35,
+      fatT: 65,
+      glasses: 2,
+      waterGoal: 3,
+      statusLabel: 'Glucose mg/dL',
+      statusVal: '124'
+    },
+    sara: {
+      id: 'sara',
+      name: 'Sara Khan',
+      welcome: 'Good Morning, Sara! 😊',
+      avatar: 'SK',
+      age: 58,
+      gender: 'Female',
+      relation: 'Mother',
+      condition: 'bp',
+      condText: '💙 High BP Watch',
+      condClass: 'cond-bp',
+      weight: 70.2,
+      height: 158,
+      calories: 900,
+      total: 1700,
+      prot: 50,
+      protT: 110,
+      carb: 120,
+      carbT: 250,
+      fat: 30,
+      fatT: 60,
+      glasses: 4,
+      waterGoal: 2.5,
+      statusLabel: 'BP (mmHg)',
+      statusVal: '142/88'
+    }
+  };
+
+  if (!localStorage.getItem('nutriProfiles')) {
+    localStorage.setItem('nutriProfiles', JSON.stringify(defaultProfiles));
+  }
+  if (!localStorage.getItem('activeProfileId')) {
+    localStorage.setItem('activeProfileId', 'ali');
+  }
+}
+
+initNutriDatabase();
+
+let currentProfile = localStorage.getItem('activeProfileId') || 'ali';
+let profiles = JSON.parse(localStorage.getItem('nutriProfiles'));
+if (!profiles || !profiles[currentProfile]) {
+  currentProfile = 'ali';
+  localStorage.setItem('activeProfileId', 'ali');
+}
+const bgColors = ['#15803d','#0ea5e9','#8b5cf6','#f59e0b','#ef4444','#06b6d4','#ec4899','#a855f7'];
+
+// Synchronize Sidebar profile card dynamically
+function syncProfileCard() {
+  const p = profiles[currentProfile] || profiles.ali;
+  document.getElementById('sideAvatar').textContent = p.avatar;
+  document.getElementById('sideAvatar').style.background = bgColors[Object.keys(profiles).indexOf(currentProfile) % bgColors.length];
+  document.getElementById('sideName').textContent = p.name;
+  
+  const tagEl = document.getElementById('sideTag');
+  tagEl.textContent = p.condText;
+  tagEl.className = `profile-info-tag ${p.condClass}`;
+
+  // Stats rows
+  const s1Val = document.getElementById('sideStat1Val');
+  const s1Lbl = document.getElementById('sideStat1Label');
+  const s2Val = document.getElementById('sideStat2Val');
+  const s2Lbl = document.getElementById('sideStat2Label');
+  const s3Val = document.getElementById('sideStat3Val');
+  const s3Lbl = document.getElementById('sideStat3Label');
+
+  if (currentProfile === 'ahmed') {
+    s1Lbl.textContent = 'Last Glucose';
+    s1Val.textContent = p.statusVal + ' mg/dL';
+    s1Val.className = 'profile-stat-val warning';
+    
+    s2Lbl.textContent = 'Today\'s Sodium';
+    s2Val.textContent = '1.2g / 2.3g';
+    s2Val.className = 'profile-stat-val ok';
+  } else if (currentProfile === 'sara') {
+    s1Lbl.textContent = 'BP (mmHg)';
+    s1Val.textContent = p.statusVal;
+    s1Val.className = 'profile-stat-val warning';
+    
+    s2Lbl.textContent = 'Today\'s Sodium';
+    s2Val.textContent = '0.9g / 1.5g';
+    s2Val.className = 'profile-stat-val ok';
+  } else {
+    s1Lbl.textContent = 'Daily Cal';
+    s1Val.textContent = `${p.calories} / ${p.total}`;
+    s1Val.className = 'profile-stat-val ok';
+    
+    s2Lbl.textContent = 'Sodium Log';
+    s2Val.textContent = '1.1g / 2.3g';
+    s2Val.className = 'profile-stat-val ok';
+  }
+
+  s3Lbl.textContent = 'Water Intake';
+  s3Val.textContent = `${(p.glasses * 0.3).toFixed(1)}L / ${p.waterGoal}L`;
+  s3Val.className = 'profile-stat-val';
+  
+  // Header User Chip Sync
+  const userChip = document.querySelector('.user-chip');
+  if (userChip) {
+    userChip.innerHTML = `<div class="user-avatar" style="background:${bgColors[Object.keys(profiles).indexOf(currentProfile) % bgColors.length]}">${p.avatar}</div>${p.name}`;
+  }
+}
+
+// ===== GEMINI API SYSTEM PROMPT =====
+function getSystemPrompt() {
+  const p = profiles[currentProfile] || profiles.ali;
+  return `You are NutriAI, a friendly Pakistani AI nutrition and health advisor. You help Pakistani families manage health through proper nutrition.
+
+USER PROFILE:
+- Name: ${p.name}, Age ${p.age}, ${p.gender} (${p.relation})
+- Condition: ${p.condText}
+- Current Weight: ${p.weight} kg, Target Weight: ${p.targetWeight || p.weight} kg
+- Goal: ${p.targetWeight && p.targetWeight > p.weight ? 'Weight/Muscle Gain' : p.targetWeight && p.targetWeight < p.weight ? 'Weight/Fat Loss' : 'Weight Maintenance'}
+- Today's Calorie Budget: ${p.calories} consumed / ${p.total} kcal limit
+- Water Logged: ${(p.glasses * 0.3).toFixed(1)}L out of ${p.waterGoal}L target
+- Mode: ${ramadanActive ? 'Ramadan Mode Active' : 'Normal Mode'}
+
+YOUR EXPERTISE:
+- Pakistani cuisine (biryani, karahi, daal, paratha, nihari, haleem, etc.)
+- Diabetes, BP, heart health, and weight management nutrition
+- Urdu-English bilingual communication (Hinglish)
+
+RESPONSE STYLE:
+- Use warm, friendly Hinglish (Urdu + English mix)
+- Use bullet points with emojis
+- Keep responses concise (under 200 words)
+- ALWAYS tailor advice to their specific condition (${p.condition})
+- End with a practical daily health tip!`;
+}
+
+// Conversation memory
+const chatHistory = [];
+
+let envApiKey = null;
+async function fetchEnvApiKey() {
+  try {
+    const res = await fetch('.env');
+    if (!res.ok) {
+      console.warn('.env file not found or not accessible (status ' + res.status + ').');
+      return;
+    }
+    const text = await res.text();
+    const matches = text.match(/OPENROUTER_API_KEY\s*=\s*([^\s#]+)/);
+    if (matches && matches[1] && matches[1] !== 'your_openrouter_api_key_here') {
+      envApiKey = matches[1].trim();
+    } else {
+      const gemMatches = text.match(/GEMINI_API_KEY\s*=\s*([^\s#]+)/);
+      if (gemMatches && gemMatches[1] && gemMatches[1] !== 'your_gemini_api_key_here') {
+        envApiKey = gemMatches[1].trim();
+      }
+    }
+  } catch (e) {
+    console.warn('Could not fetch .env file:', e);
+  }
+}
+
+function getApiKey() {
+  const localKey = localStorage.getItem('OPENROUTER_API_KEY') || localStorage.getItem('GEMINI_API_KEY');
+  if (localKey && localKey !== 'your_gemini_api_key_here' && localKey !== 'your_openrouter_api_key_here') return localKey;
+  if (envApiKey) return envApiKey;
+  const cfg = window.NUTRI_CONFIG || {};
+  const cfgKey = cfg.OPENROUTER_API_KEY || cfg.GEMINI_API_KEY;
+  if (cfgKey && cfgKey !== 'your_gemini_api_key_here' && cfgKey !== 'your_openrouter_api_key_here') return cfgKey;
+  return null;
+}
+
+async function callOpenRouterAPI(userText) {
+  const apiKey = getApiKey();
+  if (!apiKey) return null;
+
+  const cfg = window.NUTRI_CONFIG || {};
+  const modelName = cfg.MODEL_NAME || 'openrouter/free';
+
+  // Build OpenAI-style messages array
+  const messages = [
+    { role: 'system', content: getSystemPrompt() }
+  ];
+  
+  // Add history
+  chatHistory.slice(-6).forEach(h => {
+    messages.push({ role: 'user', content: h.user });
+    messages.push({ role: 'assistant', content: h.ai });
+  });
+  
+  // Add current message
+  messages.push({ role: 'user', content: userText });
+
+  try {
+    const res = await fetch(
+      'https://openrouter.ai/api/v1/chat/completions',
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+          'HTTP-Referer': window.location.origin || 'http://localhost',
+          'X-Title': 'NutriAI'
+        },
+        body: JSON.stringify({
+          model: modelName,
+          messages: messages,
+          temperature: cfg.AI_TEMPERATURE || 0.8,
+          max_tokens: cfg.AI_MAX_TOKENS || 800
+        })
+      }
+    );
+    const data = await res.json();
+    if (data.error) {
+      console.warn('OpenRouter error:', data.error.message || data.error);
+      return null;
+    }
+    const rawText = data.choices?.[0]?.message?.content || '';
+    if (!rawText) return null;
+    
+    chatHistory.push({ user: userText, ai: rawText });
+    if (chatHistory.length > 10) chatHistory.shift();
+    return formatGeminiText(rawText);
+  } catch(e) {
+    console.warn('OpenRouter API call failed:', e);
+    return null;
+  }
+}
+
+function formatGeminiText(text) {
+  return text
+    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.*?)\*/g, '<em>$1</em>')
+    .replace(/^[-•]\s(.+)$/gm, '<div style="display:flex;gap:8px;margin:4px 0;font-size:13px;color:#475569;"><span style="color:#15803d;font-weight:900;flex-shrink:0;">•</span><span>$1</span></div>')
+    .replace(/^#{1,3}\s(.+)$/gm, '<strong style="font-size:14px;">$1</strong><br>')
+    .replace(/\n\n/g, '<br><br>')
+    .replace(/\n/g, '<br>');
+}
+
+function nowTime() {
+  return new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
+}
+
+function makeAIBubble() {
+  return `<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 2C8.5 2 6 5 6 8c0 2.5 1.5 4.5 3.5 5.5L8 20h8l-1.5-6.5C16.5 12.5 18 10.5 18 8c0-3-2.5-6-6-6z" fill="white"/></svg>`;
+}
+
+function addMsg(content, isUser) {
+  const container = document.getElementById('chatMessages');
+  const div = document.createElement('div');
+  div.className = `msg ${isUser ? 'user' : 'ai'}`;
+  const p = profiles[currentProfile] || profiles.ali || { avatar: 'U', name: 'User' };
+  if (isUser) {
+    div.innerHTML = `<div class="msg-user-av">${p.avatar}</div><div><div class="msg-bubble">${content}</div><div class="msg-time">${nowTime()}</div></div>`;
+  } else {
+    div.innerHTML = `<div class="msg-avatar">${makeAIBubble()}</div><div><div class="msg-bubble">${content}</div><div class="msg-time">${nowTime()}</div></div>`;
+  }
+  container.appendChild(div);
+  container.scrollTop = container.scrollHeight;
+  return div;
+}
+
+function showTyping() {
+  const container = document.getElementById('chatMessages');
+  const div = document.createElement('div');
+  div.className = 'msg ai';
+  div.id = 'typingIndicator';
+  div.innerHTML = `<div class="msg-avatar">${makeAIBubble()}</div><div class="typing-indicator"><div class="typing-bubble"><div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div></div></div>`;
+  container.appendChild(div);
+  container.scrollTop = container.scrollHeight;
+}
+
+function removeTyping() {
+  const t = document.getElementById('typingIndicator');
+  if (t) t.remove();
+}
+
+async function sendMessage() {
+  const input = document.getElementById('chatInput');
+  const text = input.value.trim();
+  if (!text) return;
+  addMsg(text, true);
+  input.value = '';
+  showTyping();
+
+  const apiKey = getApiKey();
+  let responseText = null;
+
+  if (apiKey) {
+    responseText = await callOpenRouterAPI(text);
+    if (!responseText) {
+      console.warn("OpenRouter API call failed. Falling back to local DB.");
+    }
+  } else {
+    console.info("No API key configured. Falling back to local DB.");
+  }
+
+  // Fallback to local database if Gemini/OpenRouter didn't return a response
+  if (!responseText) {
+    const fallbackAnswer = getAIResponse(text);
+    const keyInstruction = !apiKey ? 
+      `<br><br><small style="color:var(--text-muted);display:block;margin-top:6px;border-top:1.5px dashed var(--border);padding-top:6px;">ℹ️ <strong>Note:</strong> Active OpenRouter API Key nahi mili. Smart responses ke liye Settings mein key lagayein. Ye response local database se hai.</small>` : 
+      `<br><br><small style="color:var(--text-muted);display:block;margin-top:6px;border-top:1.5px dashed var(--border);padding-top:6px;">ℹ️ <strong>Note:</strong> OpenRouter request failed. Connection ya API Key invalid ho sakti hai. Ye response local database se hai.</small>`;
+    
+    responseText = fallbackAnswer + keyInstruction;
+  }
+
+  const delay = 500 + Math.random() * 500;
+  setTimeout(() => {
+    removeTyping();
+    addMsg(responseText, false);
+  }, delay);
+}
+
+// Check configuration and show/hide banner
+function checkApiConfig() {
+  const apiKey = getApiKey();
+  const banner = document.getElementById('apiBanner');
+  if (!apiKey) {
+    if (!banner) {
+      const newBanner = document.createElement('div');
+      newBanner.id = 'apiBanner';
+      newBanner.style.cssText = 'background:linear-gradient(135deg,#fef3c7,#fffbeb);border-bottom:1px solid #fde68a;padding:10px 20px;display:flex;align-items:center;gap:12px;font-size:12px;';
+      newBanner.innerHTML = `
+        <span style="font-size:18px;">🔑</span>
+        <span style="color:#92400e;"><strong>OpenRouter API Key needed</strong> for smart AI — 
+        <a href="https://openrouter.ai/keys" target="_blank" style="color:#d97706;font-weight:700;">Get free key here</a>, 
+        then paste in Settings modal.</span>
+        <button onclick="document.getElementById('apiBanner').remove()" style="margin-left:auto;background:none;border:none;cursor:pointer;color:#92400e;font-size:16px;">✕</button>`;
+      const chatMain = document.querySelector('.chat-main');
+      chatMain.insertBefore(newBanner, chatMain.firstChild);
+    }
+  } else {
+    if (banner) banner.remove();
+    // Add load message
+    setTimeout(() => {
+      const p = profiles[currentProfile] || profiles.ali;
+      const welcome = `🤖 <strong>NutriAI Smart Chat Active!</strong> Main aapke weight goal (<strong>${p.weight}kg → ${p.targetWeight || p.weight}kg</strong>) aur reports ke hisab se unique response dunga.`;
+      addMsg(welcome, false);
+    }, 500);
+  }
+}
+
+// Settings modal trigger in sidebar
+function openSettingsModal() {
+  const key = localStorage.getItem('OPENROUTER_API_KEY') || '';
+  document.getElementById('settingsApiKey').value = key;
+  document.getElementById('settingsModal').classList.add('open');
+}
+function closeSettingsModal(e) {
+  if (e.target === document.getElementById('settingsModal') || e.target.classList.contains('modal-overlay')) {
+    document.getElementById('settingsModal').classList.remove('open');
+  }
+}
+function saveSettings() {
+  const val = document.getElementById('settingsApiKey').value.trim();
+  localStorage.setItem('OPENROUTER_API_KEY', val);
+  document.getElementById('settingsModal').classList.remove('open');
+  checkApiConfig();
+  showToast('⚙️ Settings saved successfully!');
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const sidebarSettings = document.querySelector('.sidebar-link[onclick*="Settings"]');
+  if (sidebarSettings) {
+    sidebarSettings.removeAttribute('onclick');
+    sidebarSettings.addEventListener('click', openSettingsModal);
+  }
+});
+
+function sendQuick(text) {
+  document.getElementById('chatInput').value = text;
+  sendMessage();
+}
+
+function handleKey(e) {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+}
+
+function clearChat() {
+  if (!confirm('Chat history clear karein?')) return;
+  chatHistory.length = 0;
+  const container = document.getElementById('chatMessages');
+  container.innerHTML = '<div class="chat-date">Today</div>';
+  addMsg('Assalam-o-Alaikum! 🌿 Chat clear ho gaya. Koi naya sawal puchein!', false);
+}
+
+function exportChat() {
+  const msgs = document.querySelectorAll('.msg');
+  let text = 'NutriAI Chat Export\n' + new Date().toLocaleString() + '\n\n';
+  const p = profiles[currentProfile] || profiles.ali || { name: 'User' };
+  msgs.forEach(m => {
+    const isUser = m.classList.contains('user');
+    const bubble = m.querySelector('.msg-bubble');
+    if (bubble) text += (isUser ? `${p.name}: ` : 'NutriAI: ') + bubble.innerText + '\n\n';
+  });
+  const blob = new Blob([text], {type:'text/plain'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'nutri-ai-chat.txt';
+  a.click();
+}
+
+function startVoice() {
+  if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+    alert('Voice input sirf Chrome browser mein kaam karta hai. Chrome mein open karein!'); return;
+  }
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const recognition = new SR();
+  recognition.lang = 'ur-PK';
+  recognition.onresult = e => { document.getElementById('chatInput').value = e.results[0][0].transcript; };
+  recognition.onerror = () => alert('Voice input mein error. Dobara try karein.');
+  recognition.start();
+}
+
+function checkRedirectedQuery() {
+  const q = sessionStorage.getItem('nutriQuestion');
+  if (q) {
+    sessionStorage.removeItem('nutriQuestion');
+    setTimeout(() => {
+      document.getElementById('chatInput').value = q;
+      sendMessage();
+    }, 1000);
+  }
+}
+
+async function mainInit() {
+  syncProfileCard();
+  await fetchEnvApiKey();
+  checkApiConfig();
+  checkRedirectedQuery();
+  document.getElementById('chatMessages').scrollTop = 99999;
+}
+
+mainInit();
+</script>
+
+<!-- SETTINGS MODAL CONTAINER -->
+<div class="modal-overlay" id="settingsModal" onclick="closeSettingsModal(event)">
+  <div class="modal-box">
+    <div class="modal-header">
+      <span class="modal-title">⚙️ NutriAI Settings</span>
+      <button class="modal-close" onclick="document.getElementById('settingsModal').classList.remove('open')">✕</button>
+    </div>
+    <div class="form-group">
+      <label class="form-label" style="font-size:13px;font-weight:600;display:block;margin-bottom:6px;">OpenRouter API Key</label>
+      <input type="password" class="form-input" id="settingsApiKey" placeholder="sk-or-v1-... type ka key paste karein..." style="width:100%;padding:10px 14px;border:1.5px solid var(--border);border-radius:var(--radius-sm);outline:none;font-size:13px;"/>
+      <div style="font-size:11px;color:var(--text-muted);margin-top:6px;">
+        Apna key <a href="https://openrouter.ai/keys" target="_blank" style="color:var(--primary);font-weight:700;">yahan click karke OpenRouter se free/paid mein haasil karein</a>. Key local storage mein save rahegi.
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:20px;">
+      <button style="flex:1;padding:11px;border-radius:var(--radius-full);border:1.5px solid var(--border);background:white;font-size:14px;font-weight:600;cursor:pointer;" onclick="document.getElementById('settingsModal').classList.remove('open')">Cancel</button>
+      <button style="flex:2;padding:11px;border-radius:var(--radius-full);background:var(--primary);color:white;border:none;font-size:14px;font-weight:700;cursor:pointer;" onclick="saveSettings()">Save Settings</button>
+    </div>
+  </div>
+</div>
+</body>
+</html>

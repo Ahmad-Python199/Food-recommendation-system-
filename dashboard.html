@@ -1,0 +1,912 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>NutriAI – Health Dashboard</title>
+  <link rel="stylesheet" href="styles.css"/>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body { background: var(--page-bg); overflow: hidden; }
+    .welcome-row { display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:16px; }
+    .welcome-label { font-size:11px; font-weight:700; color:var(--primary); letter-spacing:1px; text-transform:uppercase; margin-bottom:2px; }
+    .welcome-title { font-size:26px; font-weight:800; color:var(--text-primary); letter-spacing:-0.5px; }
+    .profile-chips { display:flex; gap:6px; align-items:center; }
+    .p-chip { padding:7px 16px; border-radius:var(--radius-full); font-size:12px; font-weight:600; cursor:pointer; border:1.5px solid var(--border); color:var(--text-secondary); background:white; transition:all 0.2s; }
+    .p-chip.active { background:var(--primary); color:white; border-color:var(--primary); }
+    .p-chip:hover:not(.active) { border-color:var(--primary); color:var(--primary); }
+    .add-chip { width:30px; height:30px; border-radius:50%; background:var(--primary); color:white; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:18px; border:none; transition:transform 0.2s; }
+    .add-chip:hover { transform:scale(1.1); }
+    .ramadan-banner { background:linear-gradient(135deg,var(--primary) 0%,#166534 100%); border-radius:var(--radius-lg); padding:16px 20px; display:flex; align-items:center; gap:14px; margin-bottom:18px; cursor:pointer; transition:opacity 0.2s; }
+    .ramadan-banner:hover { opacity:0.95; }
+    .ramadan-banner-icon { width:40px; height:40px; background:rgba(255,255,255,0.2); border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:20px; flex-shrink:0; }
+    .ramadan-banner-title { font-size:14px; font-weight:800; color:white; }
+    .ramadan-banner-sub { font-size:11px; color:rgba(255,255,255,0.7); }
+    .ramadan-time { display:flex; gap:14px; align-items:center; margin-left:auto; }
+    .time-item { text-align:center; }
+    .time-label { font-size:10px; color:rgba(255,255,255,0.6); font-weight:600; letter-spacing:0.5px; text-transform:uppercase; }
+    .time-value { font-size:18px; font-weight:900; color:white; font-variant-numeric:tabular-nums; }
+    .time-sep { font-size:18px; font-weight:900; color:rgba(255,255,255,0.4); padding-bottom:8px; }
+    .stats-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:18px; }
+    .calorie-inner { display:grid; grid-template-columns:130px 1fr; gap:16px; align-items:center; }
+    .donut-wrap { position:relative; width:130px; height:130px; }
+    .donut-center { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; pointer-events:none; }
+    .donut-cal { font-size:26px; font-weight:900; color:var(--text-primary); line-height:1; }
+    .donut-label { font-size:10px; color:var(--text-muted); font-weight:600; text-transform:uppercase; letter-spacing:0.5px; margin-top:2px; }
+    .nutrient-row { display:flex; justify-content:space-between; align-items:center; margin-bottom:4px; }
+    .nutrient-label { font-size:12px; color:var(--text-secondary); }
+    .nutrient-val { font-size:12px; font-weight:600; color:var(--text-primary); }
+    .water-glasses { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-top:14px; }
+    .glass-item { text-align:center; cursor:pointer; }
+    .glass-icon { width:36px; height:44px; border:2px solid var(--border); border-radius:6px; margin:0 auto 4px; position:relative; overflow:hidden; background:white; transition:border-color 0.2s; }
+    .glass-item:hover .glass-icon { border-color:var(--primary); }
+    .glass-fill { position:absolute; bottom:0; left:0; right:0; border-radius:0 0 4px 4px; transition:height 0.4s ease; }
+    .glass-fill.full { background:linear-gradient(180deg,#38bdf8,#0284c7); height:100%; }
+    .glass-fill.half { background:linear-gradient(180deg,#7dd3fc,#0284c7); height:55%; }
+    .glass-fill.empty { height:0; }
+    .glass-label { font-size:10px; color:var(--text-muted); }
+    .water-stat { font-size:28px; font-weight:900; color:#0284c7; }
+    .water-stat-label { font-size:12px; color:var(--text-muted); }
+    .add-glass-btn { margin-top:10px; width:100%; padding:8px; background:linear-gradient(90deg,#38bdf8,#0284c7); color:white; border:none; border-radius:var(--radius-full); font-size:13px; font-weight:600; cursor:pointer; transition:all 0.2s; }
+    .add-glass-btn:hover { opacity:0.9; transform:translateY(-1px); }
+    .meal-section-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
+    .meal-section-title { font-size:16px; font-weight:800; }
+    .meal-nav-btns { display:flex; gap:6px; }
+    .meal-nav-btn { width:28px; height:28px; border-radius:50%; background:var(--page-bg); border:1px solid var(--border); display:flex; align-items:center; justify-content:center; cursor:pointer; transition:all 0.15s; color:var(--text-secondary); font-size:14px; }
+    .meal-nav-btn:hover { background:var(--primary); color:white; border-color:var(--primary); }
+    .meals-row { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-bottom:18px; }
+    .meal-card { background:white; border:1px solid var(--border); border-radius:var(--radius-lg); overflow:hidden; transition:all 0.2s; cursor:pointer; }
+    .meal-card:hover { transform:translateY(-2px); box-shadow:var(--shadow); }
+    .meal-img-wrap { position:relative; height:110px; overflow:hidden; }
+    .meal-img { width:100%; height:100%; object-fit:cover; }
+    .meal-time-badge { position:absolute; top:8px; left:8px; padding:3px 8px; border-radius:var(--radius-full); font-size:10px; font-weight:700; color:white; text-transform:uppercase; }
+    .badge-B { background:#f59e0b; }
+    .badge-L { background:#10b981; }
+    .badge-D { background:#8b5cf6; }
+    .meal-check { position:absolute; top:8px; right:8px; width:22px; height:22px; border-radius:50%; border:2px solid white; background:rgba(255,255,255,0.85); display:flex; align-items:center; justify-content:center; font-size:11px; }
+    .meal-body { padding:12px; }
+    .meal-name { font-size:13px; font-weight:700; margin-bottom:3px; }
+    .meal-sub { font-size:11px; color:var(--text-muted); margin-bottom:8px; }
+    .meal-meta { display:flex; justify-content:space-between; font-size:11px; color:var(--text-muted); }
+    .meal-meta span { display:flex; align-items:center; gap:3px; }
+    .weight-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
+    .weight-change { font-size:13px; font-weight:600; color:var(--primary); margin-top:2px; }
+    .period-select { padding:5px 12px; border-radius:var(--radius-full); background:var(--page-bg); border:1px solid var(--border); font-size:12px; color:var(--text-secondary); cursor:pointer; font-family:inherit; }
+    /* DETAIL MODAL */
+    .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.45); z-index:1000; display:none; align-items:center; justify-content:center; }
+    .modal-overlay.open { display:flex; }
+    .modal-box { background:white; border-radius:24px; padding:28px; max-width:480px; width:90%; box-shadow:0 20px 60px rgba(0,0,0,0.2); animation:modalPop 0.25s ease; }
+    @keyframes modalPop { from{transform:scale(0.92);opacity:0;} to{transform:scale(1);opacity:1;} }
+    .modal-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; }
+    .modal-title { font-size:18px; font-weight:800; }
+    .modal-close { width:32px; height:32px; border-radius:50%; background:var(--page-bg); border:1px solid var(--border); display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:16px; }
+    .modal-close:hover { background:var(--border); }
+    .detail-row { display:flex; align-items:center; justify-content:space-between; padding:10px 0; border-bottom:1px solid var(--border); }
+    .detail-row:last-child { border-bottom:none; }
+    .detail-label { font-size:13px; color:var(--text-secondary); }
+    .detail-val { font-size:13px; font-weight:700; }
+    .detail-bar-wrap { flex:1; margin:0 12px; height:6px; background:var(--border); border-radius:10px; overflow:hidden; }
+    .detail-bar { height:100%; border-radius:10px; }
+    /* TOAST */
+    .toast { position:fixed; bottom:24px; right:24px; background:#1e293b; color:white; padding:12px 20px; border-radius:12px; font-size:13px; font-weight:600; z-index:9999; opacity:0; transform:translateY(10px); transition:all 0.3s; pointer-events:none; }
+    .toast.show { opacity:1; transform:translateY(0); }
+  </style>
+</head>
+<body>
+<div class="app-layout">
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="sidebar-logo-icon">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M12 2C8.5 2 6 5 6 8c0 2.5 1.5 4.5 3.5 5.5L8 20h8l-1.5-6.5C16.5 12.5 18 10.5 18 8c0-3-2.5-6-6-6z" fill="white"/></svg>
+      </div>
+      <span class="sidebar-logo-text">NutriAI</span>
+    </div>
+    <div class="family-card">
+      <div class="family-avatar" id="sidebarAvatar">FA</div>
+      <div class="family-name" id="sidebarName">Family Health</div>
+      <div class="family-sub" id="sidebarSub">Managing 4 Profiles</div>
+    </div>
+    <nav class="sidebar-nav">
+      <a href="dashboard.html" class="nav-item active">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>Dashboard
+      </a>
+      <a href="meal-plan.html" class="nav-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8h1a4 4 0 010 8h-1"/><path d="M2 8h16v9a4 4 0 01-4 4H6a4 4 0 01-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg>Meal Plan
+      </a>
+      <a href="family-profiles.html" class="nav-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>Family Profiles
+      </a>
+      <a href="health-reports.html" class="nav-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>Health Reports
+      </a>
+      <a href="nutri-ai.html" class="nav-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2C8.5 2 6 5 6 8c0 2.5 1.5 4.5 3.5 5.5L8 20h8l-1.5-6.5C16.5 12.5 18 10.5 18 8c0-3-2.5-6-6-6z"/></svg>NutriAI
+      </a>
+    </nav>
+    <div class="sidebar-bottom">
+      <button class="upgrade-btn" onclick="showToast('⭐ Upgrading to Pro...')">⚡ Upgrade to Pro</button>
+      <div class="sidebar-link" onclick="openSettingsModal()">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93l-1.41 1.41M4.93 4.93l1.41 1.41M12 2v2M12 20v2M19.07 19.07l-1.41-1.41M4.93 19.07l1.41-1.41M22 12h-2M4 12H2"/></svg>Settings
+      </div>
+      <div class="sidebar-link" onclick="window.location='nutri-ai.html'">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>Support
+      </div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <div class="main-content">
+    <header class="app-header">
+      <div class="header-logo-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="7" height="7" rx="1" fill="white"/><rect x="14" y="3" width="7" height="7" rx="1" fill="white" opacity="0.7"/><rect x="3" y="14" width="7" height="7" rx="1" fill="white" opacity="0.7"/><rect x="14" y="14" width="7" height="7" rx="1" fill="white" opacity="0.5"/></svg></div>
+      <span class="header-brand">NutriAI</span>
+      <div class="header-divider"></div>
+      <span class="header-title">Health Dashboard</span>
+      <div class="header-spacer"></div>
+      <div class="header-nav">
+        <button class="header-nav-btn active" onclick="switchTab(this,'dashboard')">Dashboard</button>
+        <button class="header-nav-btn" onclick="toggleLang(this)">English/Urdu</button>
+        <button class="header-nav-btn" id="ramadanBtn" onclick="toggleRamadanMode(this)">🌙 Ramadan Mode</button>
+      </div>
+      <div class="header-actions">
+        <button class="icon-btn" title="Notifications" onclick="showToast('🔔 3 naye notifications hain!')">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
+        </button>
+        <div class="user-chip" onclick="window.location='family-profiles.html'">
+          <div class="user-avatar" id="headerAvatar">AK</div>
+          <span id="headerName">Ali Khan</span>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
+      </div>
+    </header>
+
+    <div class="content-area">
+      <!-- WELCOME -->
+      <div class="welcome-row animate-fadeInUp">
+        <div>
+          <div class="welcome-label">WELCOME BACK</div>
+          <h1 class="welcome-title" id="welcomeText">As-salamu Alaykum, Ali 👋</h1>
+        </div>
+        <div class="profile-chips">
+          <button class="p-chip active" onclick="switchProfile(this,'ali')">Ali</button>
+          <button class="p-chip" onclick="switchProfile(this,'zoya')">Zoya</button>
+          <button class="p-chip" onclick="switchProfile(this,'ahmed')">Ahmed</button>
+          <button class="p-chip" onclick="switchProfile(this,'sara')">Sara</button>
+          <button class="add-chip" onclick="window.location='family-profiles.html'" title="Add Profile">+</button>
+        </div>
+      </div>
+
+      <!-- RAMADAN BANNER -->
+      <div class="ramadan-banner animate-fadeInUp d1" id="ramadanBanner" onclick="showToast('🌙 Ramadan Mode Active — Sehri aur Iftar plans tailored for you!')">
+        <div class="ramadan-banner-icon">🌙</div>
+        <div class="ramadan-banner-text">
+          <div class="ramadan-banner-title">Ramadan Mode Active</div>
+          <div class="ramadan-banner-sub">Optimizing nutrition for your fasting window.</div>
+        </div>
+        <div class="ramadan-time">
+          <div class="time-item"><div class="time-label">SEHRI ENDS</div><div class="time-value" id="sehriTime">04:42 AM</div></div>
+          <div class="time-sep">·</div>
+          <div class="time-item"><div class="time-label">IFTAR IN</div><div class="time-value" id="iftarCountdown">06:21 PM</div></div>
+        </div>
+      </div>
+
+      <!-- STATS GRID -->
+      <div class="stats-grid animate-fadeInUp d2">
+        <!-- CALORIE CARD -->
+        <div class="card card-p">
+          <div class="card-header">
+            <div><div class="card-title">Calorie Tracker</div><div class="card-subtitle" id="calRemain">Remaining: 1,000 kcal</div></div>
+            <span style="font-size:12px;color:var(--primary);font-weight:600;cursor:pointer;" onclick="openDetailModal()">Details →</span>
+          </div>
+          <div class="calorie-inner">
+            <div class="donut-wrap">
+              <canvas id="donutChart" width="130" height="130"></canvas>
+              <div class="donut-center">
+                <div class="donut-cal" id="donutCalNum">840</div>
+                <div class="donut-label">CONSUMED</div>
+              </div>
+            </div>
+            <div>
+              <div style="margin-bottom:10px;">
+                <div class="nutrient-row"><span class="nutrient-label">Protein</span><span class="nutrient-val" id="protVal">45g / 120g</span></div>
+                <div class="progress-bar mt-2"><div class="progress-fill progress-green" id="protBar" style="width:37%"></div></div>
+              </div>
+              <div style="margin-bottom:10px;">
+                <div class="nutrient-row"><span class="nutrient-label">Carbohydrates</span><span class="nutrient-val" id="carbVal">110g / 290g</span></div>
+                <div class="progress-bar mt-2"><div class="progress-fill progress-orange" id="carbBar" style="width:38%"></div></div>
+              </div>
+              <div>
+                <div class="nutrient-row"><span class="nutrient-label">Fats</span><span class="nutrient-val" id="fatVal">28g / 65g</span></div>
+                <div class="progress-bar mt-2"><div class="progress-fill progress-red" id="fatBar" style="width:43%"></div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- WATER CARD -->
+        <div class="card card-p">
+          <div class="card-header">
+            <div><div class="card-title">Water Hydration</div><div class="card-subtitle">Target: <strong>2.5 L</strong> (8 glasses)</div></div>
+            <span style="font-size:12px;color:#0284c7;font-weight:600;" id="waterPercent">37%</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:14px;margin-bottom:12px;">
+            <div><div class="water-stat" id="glassCount">3</div><div class="water-stat-label">/ 8 Glasses</div></div>
+            <div style="flex:1;">
+              <div style="height:6px;background:var(--border);border-radius:10px;overflow:hidden;">
+                <div id="waterBar" style="width:37.5%;height:100%;background:linear-gradient(90deg,#38bdf8,#0284c7);border-radius:10px;transition:width 0.4s;"></div>
+              </div>
+              <div style="font-size:11px;color:var(--text-muted);margin-top:4px;" id="waterRemainingText">5 more glasses to go</div>
+            </div>
+          </div>
+          <div class="water-glasses" id="waterGlasses">
+            <!-- Generated by JS -->
+          </div>
+          <button class="add-glass-btn" onclick="addGlass()">💧 Add Glass</button>
+        </div>
+      </div>
+
+      <!-- TODAY'S MEAL PLAN -->
+      <div class="animate-fadeInUp d3">
+        <div class="meal-section-header">
+          <span class="meal-section-title">Today's Meal Plan</span>
+          <div style="display:flex;align-items:center;gap:12px;">
+            <span style="font-size:12px;color:var(--text-muted);" id="mealDayLabel">Day 1</span>
+            <div class="meal-nav-btns">
+              <button class="meal-nav-btn" onclick="changeMealDay(-1)" title="Previous Day">‹</button>
+              <button class="meal-nav-btn" onclick="changeMealDay(1)" title="Next Day">›</button>
+            </div>
+          </div>
+        </div>
+        <div class="meals-row" id="mealsRow"></div>
+      </div>
+
+      <!-- WEIGHT PROGRESS -->
+      <div class="card card-p animate-fadeInUp d4">
+        <div class="weight-header">
+          <div>
+            <div class="card-title">Weight Progress</div>
+            <div class="weight-change" id="weightChange">-4.2 kg this week · On track!</div>
+          </div>
+          <select class="period-select" onchange="updateWeightChart(this.value)">
+            <option value="7">Last 7 Days</option>
+            <option value="30">Last 30 Days</option>
+            <option value="90">Last 3 Months</option>
+          </select>
+        </div>
+        <canvas id="weightChart" height="80"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- DETAIL MODAL -->
+<div class="modal-overlay" id="detailModal" onclick="closeDetailModal(event)">
+  <div class="modal-box">
+    <div class="modal-header">
+      <span class="modal-title">📊 Nutrition Details</span>
+      <button class="modal-close" onclick="document.getElementById('detailModal').classList.remove('open')">✕</button>
+    </div>
+    <div class="detail-row">
+      <span class="detail-label">🔥 Calories Consumed</span>
+      <div class="detail-bar-wrap"><div class="detail-bar" style="width:46%;background:#15803d;"></div></div>
+      <span class="detail-val" id="dCalConsumed">840 / 1840</span>
+    </div>
+    <div class="detail-row">
+      <span class="detail-label">💪 Protein</span>
+      <div class="detail-bar-wrap"><div class="detail-bar" style="width:37%;background:#3b82f6;"></div></div>
+      <span class="detail-val">45g / 120g</span>
+    </div>
+    <div class="detail-row">
+      <span class="detail-label">🌾 Carbohydrates</span>
+      <div class="detail-bar-wrap"><div class="detail-bar" style="width:38%;background:#f59e0b;"></div></div>
+      <span class="detail-val">110g / 290g</span>
+    </div>
+    <div class="detail-row">
+      <span class="detail-label">🥑 Fats</span>
+      <div class="detail-bar-wrap"><div class="detail-bar" style="width:43%;background:#ef4444;"></div></div>
+      <span class="detail-val">28g / 65g</span>
+    </div>
+    <div class="detail-row">
+      <span class="detail-label">🌿 Fiber</span>
+      <div class="detail-bar-wrap"><div class="detail-bar" style="width:60%;background:#22c55e;"></div></div>
+      <span class="detail-val">18g / 30g</span>
+    </div>
+    <div class="detail-row">
+      <span class="detail-label">🧂 Sodium</span>
+      <div class="detail-bar-wrap"><div class="detail-bar" style="width:52%;background:#f97316;"></div></div>
+      <span class="detail-val">1,200 / 2,300mg</span>
+    </div>
+    <div class="detail-row">
+      <span class="detail-label">🍬 Sugar</span>
+      <div class="detail-bar-wrap"><div class="detail-bar" style="width:30%;background:#ec4899;"></div></div>
+      <span class="detail-val">15g / 50g</span>
+    </div>
+    <div style="margin-top:16px;padding:12px;background:var(--light-bg);border-radius:10px;font-size:12px;color:var(--primary);">
+      💡 <strong>Tip:</strong> Aaj protein thoda kam hai. Raat ke khane mein daal ya machli shaamil karein!
+    </div>
+  </div>
+</div>
+
+<!-- SETTINGS MODAL -->
+<div class="modal-overlay" id="settingsModal" onclick="closeSettingsModal(event)">
+  <div class="modal-box">
+    <div class="modal-header">
+      <span class="modal-title">⚙️ NutriAI Settings</span>
+      <button class="modal-close" onclick="document.getElementById('settingsModal').classList.remove('open')">✕</button>
+    </div>
+    <div class="form-group">
+      <label class="form-label" style="font-size:13px;font-weight:600;display:block;margin-bottom:6px;">OpenRouter API Key</label>
+      <input type="password" class="form-input" id="settingsApiKey" placeholder="sk-or-v1-... type ka key paste karein..." style="width:100%;padding:10px 14px;border:1.5px solid var(--border);border-radius:var(--radius-sm);outline:none;font-size:13px;"/>
+      <div style="font-size:11px;color:var(--text-muted);margin-top:6px;">
+        Apna key <a href="https://openrouter.ai/keys" target="_blank" style="color:var(--primary);font-weight:700;">yahan click karke OpenRouter se free/paid mein haasil karein</a>. Key local storage mein save rahegi.
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:20px;">
+      <button style="flex:1;padding:11px;border-radius:var(--radius-full);border:1.5px solid var(--border);background:white;font-size:14px;font-weight:600;cursor:pointer;" onclick="document.getElementById('settingsModal').classList.remove('open')">Cancel</button>
+      <button style="flex:2;padding:11px;border-radius:var(--radius-full);background:var(--primary);color:white;border:none;font-size:14px;font-weight:700;cursor:pointer;" onclick="saveSettings()">Save Settings</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ===== SHARED DATABASE HELPERS =====
+function initNutriDatabase() {
+  const defaultProfiles = {
+    ali: {
+      id: 'ali',
+      name: 'Ali Khan',
+      welcome: 'As-salamu Alaykum, Ali 👋',
+      avatar: 'AK',
+      age: 34,
+      gender: 'Male',
+      relation: 'Head of Family',
+      condition: 'healthy',
+      condText: '✅ Healthy',
+      condClass: 'cond-healthy',
+      weight: 82.3,
+      targetWeight: 80.0,
+      height: 178,
+      calories: 840,
+      total: 1840,
+      prot: 45,
+      protT: 120,
+      carb: 110,
+      carbT: 290,
+      fat: 28,
+      fatT: 65,
+      glasses: 3,
+      waterGoal: 3,
+      statusLabel: 'Daily Cal',
+      statusVal: '1,840'
+    },
+    zoya: {
+      id: 'zoya',
+      name: 'Zoya Khan',
+      welcome: 'Good Morning, Zoya! 😊',
+      avatar: 'ZK',
+      age: 30,
+      gender: 'Female',
+      relation: 'Spouse',
+      condition: 'healthy',
+      condText: '✅ Healthy',
+      condClass: 'cond-healthy',
+      weight: 62.1,
+      targetWeight: 60.0,
+      height: 162,
+      calories: 620,
+      total: 1600,
+      prot: 55,
+      protT: 100,
+      carb: 80,
+      carbT: 220,
+      fat: 22,
+      fatT: 55,
+      glasses: 5,
+      waterGoal: 2.5,
+      statusLabel: 'Daily Cal',
+      statusVal: '1,600'
+    },
+    ahmed: {
+      id: 'ahmed',
+      name: 'Ahmed Khan',
+      welcome: 'As-salamu Alaykum, Ahmed 👋',
+      avatar: 'AK',
+      age: 62,
+      gender: 'Male',
+      relation: 'Father',
+      condition: 'diabetes',
+      condText: '🩺 Diabetes Control',
+      condClass: 'cond-diabetes',
+      weight: 78.4,
+      targetWeight: 75.0,
+      height: 170,
+      calories: 1050,
+      total: 1840,
+      prot: 70,
+      protT: 120,
+      carb: 140,
+      carbT: 290,
+      fat: 35,
+      fatT: 65,
+      glasses: 2,
+      waterGoal: 3,
+      statusLabel: 'Glucose mg/dL',
+      statusVal: '124'
+    },
+    sara: {
+      id: 'sara',
+      name: 'Sara Khan',
+      welcome: 'Good Morning, Sara! 😊',
+      avatar: 'SK',
+      age: 58,
+      gender: 'Female',
+      relation: 'Mother',
+      condition: 'bp',
+      condText: '💙 High BP Watch',
+      condClass: 'cond-bp',
+      weight: 70.2,
+      targetWeight: 72.0,
+      height: 158,
+      calories: 900,
+      total: 1700,
+      prot: 50,
+      protT: 110,
+      carb: 120,
+      carbT: 250,
+      fat: 30,
+      fatT: 60,
+      glasses: 4,
+      waterGoal: 2.5,
+      statusLabel: 'BP (mmHg)',
+      statusVal: '142/88'
+    }
+  };
+
+  if (!localStorage.getItem('nutriProfiles')) {
+    localStorage.setItem('nutriProfiles', JSON.stringify(defaultProfiles));
+  } else {
+    // Migration: ensure targetWeight exists
+    try {
+      let currentProfiles = JSON.parse(localStorage.getItem('nutriProfiles'));
+      let mig = false;
+      if (currentProfiles.ali && !currentProfiles.ali.hasOwnProperty('targetWeight')) { currentProfiles.ali.targetWeight = 80.0; mig = true; }
+      if (currentProfiles.zoya && !currentProfiles.zoya.hasOwnProperty('targetWeight')) { currentProfiles.zoya.targetWeight = 60.0; mig = true; }
+      if (currentProfiles.ahmed && !currentProfiles.ahmed.hasOwnProperty('targetWeight')) { currentProfiles.ahmed.targetWeight = 75.0; mig = true; }
+      if (currentProfiles.sara && !currentProfiles.sara.hasOwnProperty('targetWeight')) { currentProfiles.sara.targetWeight = 72.0; mig = true; }
+      if (mig) {
+        localStorage.setItem('nutriProfiles', JSON.stringify(currentProfiles));
+      }
+    } catch(e) {
+      console.warn('Migration failed, resetting profiles:', e);
+      localStorage.setItem('nutriProfiles', JSON.stringify(defaultProfiles));
+    }
+  }
+  if (!localStorage.getItem('activeProfileId')) {
+    localStorage.setItem('activeProfileId', 'ali');
+  }
+
+  const defaultReports = [
+    { id: 1, type: 'blood', name: 'CBC Blood Test', patient: 'ahmed', patientName: 'Ahmed Khan', date: 'Jun 10, 2026', timeAgo: '3 days ago', badgeClass: 'badge-attention', badgeText: '⚠️ Attention', findings: [{label:'HbA1c', val:'7.2% ↑', cls:'warn'}, {label:'Fasting Glucose', val:'124 mg/dL ↑', cls:'warn'}, {label:'Cholesterol (LDL)', val:'98 mg/dL ✓', cls:'ok'}, {label:'Hemoglobin', val:'14.2 g/dL ✓', cls:'ok'}], insight: 'HbA1c 7.2% — diabetes not well controlled. More fiber, less sugar, and daily 30-min walk recommended. Retest in 3 months.', file: 'ahmed-cbc.pdf' },
+    { id: 2, type: 'glucose', name: 'Glucose Tolerance Test', patient: 'zoya', patientName: 'Zoya Khan', date: 'Jun 8, 2026', timeAgo: '5 days ago', badgeClass: 'badge-normal', badgeText: '✅ Normal', findings: [{label:'Fasting Glucose', val:'88 mg/dL ✓', cls:'ok'}, {label:'2hr Post-Glucose', val:'112 mg/dL ✓', cls:'ok'}, {label:'HbA1c', val:'5.4% ✓', cls:'ok'}], insight: 'Excellent! Glucose levels are normal. Continue current diet. Consider annual checkup to maintain this healthy status.', file: 'zoya-glucose.pdf' },
+    { id: 3, type: 'bp', name: 'Blood Pressure Report', patient: 'sara', patientName: 'Sara Khan', date: 'Jun 12, 2026', timeAgo: 'Yesterday', badgeClass: 'badge-critical', badgeText: '🚨 Critical', findings: [{label:'Systolic BP', val:'158 mmHg ↑↑', cls:'bad'}, {label:'Diastolic BP', val:'95 mmHg ↑', cls:'bad'}, {label:'Heart Rate', val:'72 bpm ✓', cls:'ok'}, {label:'Sodium (Urine)', val:'High ↑', cls:'warn'}], insight: 'BP critically elevated (Stage 2 Hypertension). Reduce sodium <1,500mg/day. Avoid pickle, papad, processed foods. Consult doctor urgently!', file: 'sara-bp.pdf' },
+    { id: 4, type: 'blood', name: 'Full Body Checkup', patient: 'ali', patientName: 'Ali Khan', date: 'Jun 1, 2026', timeAgo: '12 days ago', badgeClass: 'badge-normal', badgeText: '✅ Normal', findings: [{label:'Total Cholesterol', val:'175 mg/dL ✓', cls:'ok'}, {label:'Vitamin D', val:'22 ng/mL ↓', cls:'warn'}, {label:'TSH (Thyroid)', val:'2.1 mIU/L ✓', cls:'ok'}, {label:'Liver (ALT)', val:'28 U/L ✓', cls:'ok'}], insight: 'Overall healthy! Vitamin D is low — take daily supplements (1000 IU) and get 15 min sunlight. Annual follow-up recommended.', file: 'ali-checkup.pdf' }
+  ];
+
+  if (!localStorage.getItem('nutriReports')) {
+    localStorage.setItem('nutriReports', JSON.stringify(defaultReports));
+  }
+}
+
+initNutriDatabase();
+
+let currentProfile = localStorage.getItem('activeProfileId') || 'ali';
+let profiles = JSON.parse(localStorage.getItem('nutriProfiles'));
+if (!profiles || !profiles[currentProfile]) {
+  currentProfile = 'ali';
+  localStorage.setItem('activeProfileId', 'ali');
+}
+
+// ===== MEAL PLAN DATABASE FOR DASHBOARD =====
+const defaultMealPlans = {
+  ali: [
+    { day:'Day 1', meals:[
+      { name:'Anda Paratha & Chai', sub:'Egg-stuffed flatbread with low-fat butter', type:'Breakfast', badge:'B', cal:420, prot:20, carb:45, fat:15, time:'15 min', img:'https://images.unsplash.com/photo-1601050690597-df0568f70950?w=400&auto=format&fit=crop', done:true },
+      { name:'Chicken Karahi (Lean)', sub:'Served with 2 whole wheat rotis & salad', type:'Lunch', badge:'L', cal:580, prot:45, carb:50, fat:18, time:'45 min', img:'https://images.unsplash.com/photo-1588166524941-3bf61a9c41db?w=400&auto=format&fit=crop', done:false },
+      { name:'Grilled Paneer Salad', sub:'Light meal with chickpeas & mint chutney', type:'Dinner', badge:'D', cal:350, prot:18, carb:35, fat:12, time:'20 min', img:'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=400&auto=format&fit=crop', done:false }
+    ]},
+    { day:'Day 2', meals:[
+      { name:'Masoor Daal Soup', sub:'High-protein lentil soup with wheat bread', type:'Breakfast', badge:'B', cal:380, prot:22, carb:40, fat:10, time:'25 min', img:'https://images.unsplash.com/photo-1547592180-85f173990554?w=400&auto=format&fit=crop', done:false },
+      { name:'Grilled Chicken Salad', sub:'Lean protein with mixed greens', type:'Lunch', badge:'L', cal:420, prot:40, carb:15, fat:12, time:'20 min', img:'https://images.unsplash.com/photo-1540189549336-e6e99c3679fe?w=400&auto=format&fit=crop', done:false },
+      { name:'Daal Chawal (Brown Rice)', sub:'Masoor daal with brown rice & raita', type:'Dinner', badge:'D', cal:490, prot:24, carb:65, fat:8, time:'35 min', img:'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&auto=format&fit=crop', done:false }
+    ]},
+    { day:'Day 3', meals:[
+      { name:'Oatmeal & Almonds', sub:'Steel-cut oats with nuts and low-fat milk', type:'Breakfast', badge:'B', cal:340, prot:14, carb:45, fat:8, time:'10 min', img:'https://images.unsplash.com/photo-1505576399279-565b52d4ac71?w=400&auto=format&fit=crop', done:false },
+      { name:'Avocado Toast & Egg', sub:'Whole wheat toast with fresh avocado', type:'Lunch', badge:'L', cal:380, prot:16, carb:38, fat:14, time:'10 min', img:'https://images.unsplash.com/photo-1525351484163-7529414344d8?w=400&auto=format&fit=crop', done:false },
+      { name:'Fish Curry (Light)', sub:'Grilled fish in light tomato sauce', type:'Dinner', badge:'D', cal:460, prot:35, carb:20, fat:10, time:'30 min', img:'https://images.unsplash.com/photo-1467003909585-2f8a72700288?w=400&auto=format&fit=crop', done:false }
+    ]},
+    { day:'Day 4', meals:[
+      { name:'Green Smoothie Bowl', sub:'Spinach, banana, almonds — power breakfast', type:'Breakfast', badge:'B', cal:310, prot:10, carb:50, fat:6, time:'5 min', img:'https://images.unsplash.com/photo-1610970881699-44a5587cabec?w=400&auto=format&fit=crop', done:false },
+      { name:'Chana Chaat Salad', sub:'Chickpea salad with lemon & spices', type:'Lunch', badge:'L', cal:370, prot:18, carb:45, fat:8, time:'15 min', img:'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=400&auto=format&fit=crop', done:false },
+      { name:'Baked Chicken & Veggies', sub:'Herb-baked chicken with seasonal vegetables', type:'Dinner', badge:'D', cal:520, prot:42, carb:30, fat:14, time:'40 min', img:'https://images.unsplash.com/photo-1598103442097-8b74394b95c1?w=400&auto=format&fit=crop', done:false }
+    ]}
+  ],
+  zoya: [
+    { day:'Day 1', meals:[
+      { name:'Low-fat Yogurt & Berries', sub:'Greek yogurt with mixed berries and honey', type:'Breakfast', badge:'B', cal:220, prot:15, carb:25, fat:3, time:'5 min', img:'https://images.unsplash.com/photo-1505576399279-565b52d4ac71?w=400&auto=format&fit=crop', done:true },
+      { name:'Quinoa Veggie Salad', sub:'Red quinoa with bell peppers & vinaigrette', type:'Lunch', badge:'L', cal:380, prot:12, carb:48, fat:10, time:'20 min', img:'https://images.unsplash.com/photo-1540189549336-e6e99c3679fe?w=400&auto=format&fit=crop', done:true },
+      { name:'Grilled Tofu with Broccoli', sub:'Sautéed tofu cubes with steamed broccoli', type:'Dinner', badge:'D', cal:300, prot:18, carb:20, fat:12, time:'25 min', img:'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=400&auto=format&fit=crop', done:false }
+    ]},
+    { day:'Day 2', meals:[
+      { name:'Oatmeal with Apple', sub:'Oatmeal cooked in water with apple slices', type:'Breakfast', badge:'B', cal:280, prot:8, carb:48, fat:5, time:'10 min', img:'https://images.unsplash.com/photo-1505576399279-565b52d4ac71?w=400&auto=format&fit=crop', done:false },
+      { name:'Mediterranean Chickpea Bowl', sub:'Chickpeas, cucumbers, and tomatoes', type:'Lunch', badge:'L', cal:410, prot:16, carb:52, fat:9, time:'15 min', img:'https://images.unsplash.com/photo-1540189549336-e6e99c3679fe?w=400&auto=format&fit=crop', done:false },
+      { name:'Baked Fish Breast', sub:'Basa fish baked with herbs and lemon', type:'Dinner', badge:'D', cal:320, prot:30, carb:5, fat:8, time:'25 min', img:'https://images.unsplash.com/photo-1467003909585-2f8a72700288?w=400&auto=format&fit=crop', done:false }
+    ]}
+  ],
+  ahmed: [
+    { day:'Day 1', meals:[
+      { name:'Boiled Eggs & Toast', sub:'2 boiled eggs with 1 slice whole wheat toast', type:'Breakfast', badge:'B', cal:250, prot:18, carb:15, fat:10, time:'10 min', img:'https://images.unsplash.com/photo-1525351484163-7529414344d8?w=400&auto=format&fit=crop', done:true },
+      { name:'Chicken Karahi (Lean, Small)', sub:'Lean chicken cooked with minimal oil, 1 roti', type:'Lunch', badge:'L', cal:450, prot:32, carb:30, fat:12, time:'30 min', img:'https://images.unsplash.com/photo-1588166524941-3bf61a9c41db?w=400&auto=format&fit=crop', done:true },
+      { name:'Masoor Daal Soup', sub:'Traditional light lentil soup, rich in fiber', type:'Dinner', badge:'D', cal:350, prot:20, carb:38, fat:6, time:'20 min', img:'https://images.unsplash.com/photo-1547592180-85f173990554?w=400&auto=format&fit=crop', done:true }
+    ]},
+    { day:'Day 2', meals:[
+      { name:'Besan Ka Chilla', sub:'Gram flour pancake with onions & coriander', type:'Breakfast', badge:'B', cal:240, prot:12, carb:28, fat:6, time:'15 min', img:'https://images.unsplash.com/photo-1601050690597-df0568f70950?w=400&auto=format&fit=crop', done:false },
+      { name:'Palak Paneer (Light)', sub:'Cottage cheese cubes in low-fat spinach gravy', type:'Lunch', badge:'L', cal:380, prot:22, carb:15, fat:14, time:'25 min', img:'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=400&auto=format&fit=crop', done:false },
+      { name:'Grilled Chicken Breast', sub:'With steamed cabbage and beans', type:'Dinner', badge:'D', cal:390, prot:38, carb:8, fat:9, time:'30 min', img:'https://images.unsplash.com/photo-1598103442097-8b74394b95c1?w=400&auto=format&fit=crop', done:false }
+    ]}
+  ],
+  sara: [
+    { day:'Day 1', meals:[
+      { name:'Oatmeal with Walnuts', sub:'Salt-free oatmeal with walnuts and banana', type:'Breakfast', badge:'B', cal:320, prot:10, carb:45, fat:11, time:'10 min', img:'https://images.unsplash.com/photo-1505576399279-565b52d4ac71?w=400&auto=format&fit=crop', done:true },
+      { name:'Baked Fish & Salad', sub:'Low-salt baked salmon with lettuce & cucumber', type:'Lunch', badge:'L', cal:420, prot:32, carb:10, fat:12, time:'30 min', img:'https://images.unsplash.com/photo-1467003909585-2f8a72700288?w=400&auto=format&fit=crop', done:false },
+      { name:'Brown Rice & Masoor Daal', sub:'High-potassium daal with 1/2 cup brown rice', type:'Dinner', badge:'D', cal:380, prot:16, carb:50, fat:4, time:'35 min', img:'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&auto=format&fit=crop', done:true }
+    ]},
+    { day:'Day 2', meals:[
+      { name:'Fruit Bowl & Yogurt', sub:'Apple, pear, and orange slices with yogurt', type:'Breakfast', badge:'B', cal:240, prot:8, carb:38, fat:2, time:'10 min', img:'https://images.unsplash.com/photo-1505576399279-565b52d4ac71?w=400&auto=format&fit=crop', done:false },
+      { name:'Quinoa Veg Salad', sub:'Mixed vegetables with olive oil and lemon dressing', type:'Lunch', badge:'L', cal:350, prot:10, carb:42, fat:11, time:'15 min', img:'https://images.unsplash.com/photo-1540189549336-e6e99c3679fe?w=400&auto=format&fit=crop', done:false },
+      { name:'Grilled Chicken Slices', sub:'Low-sodium grilled chicken with spinach', type:'Dinner', badge:'D', cal:380, prot:34, carb:8, fat:8, time:'25 min', img:'https://images.unsplash.com/photo-1598103442097-8b74394b95c1?w=400&auto=format&fit=crop', done:false }
+    ]}
+  ]
+};
+
+if (!localStorage.getItem('nutriDashboardMeals')) {
+  localStorage.setItem('nutriDashboardMeals', JSON.stringify(defaultMealPlans));
+}
+
+let allDashboardMeals = JSON.parse(localStorage.getItem('nutriDashboardMeals'));
+let mealDays = allDashboardMeals[currentProfile] || defaultMealPlans[currentProfile] || defaultMealPlans.ali;
+let mealDayIndex = 0;
+
+// ===== RECALCULATE CONSUMED CALORIES & NUTRIENTS =====
+function recalculateNutrients() {
+  const currentProfileData = profiles[currentProfile];
+  
+  let totalCal = 0;
+  let totalProt = 0;
+  let totalCarb = 0;
+  let totalFat = 0;
+
+  const day = mealDays[mealDayIndex] || { meals: [] };
+  day.meals.forEach(m => {
+    if (m.done) {
+      totalCal += m.cal;
+      totalProt += (m.prot || 0);
+      totalCarb += (m.carb || 0);
+      totalFat += (m.fat || 0);
+    }
+  });
+
+  currentProfileData.calories = totalCal;
+  currentProfileData.prot = totalProt;
+  currentProfileData.carb = totalCarb;
+  currentProfileData.fat = totalFat;
+
+  localStorage.setItem('nutriProfiles', JSON.stringify(profiles));
+
+  updateDonut(currentProfileData.calories, currentProfileData.total);
+  document.getElementById('donutCalNum').textContent = currentProfileData.calories;
+  document.getElementById('calRemain').textContent = `Remaining: ${Math.max(0, currentProfileData.total - currentProfileData.calories)} kcal`;
+  document.getElementById('protVal').textContent = `${currentProfileData.prot}g / ${currentProfileData.protT}g`;
+  document.getElementById('carbVal').textContent = `${currentProfileData.carb}g / ${currentProfileData.carbT}g`;
+  document.getElementById('fatVal').textContent = `${currentProfileData.fat}g / ${currentProfileData.fatT}g`;
+  document.getElementById('protBar').style.width = Math.min(100, Math.round(currentProfileData.prot/currentProfileData.protT*100))+'%';
+  document.getElementById('carbBar').style.width = Math.min(100, Math.round(currentProfileData.carb/currentProfileData.carbT*100))+'%';
+  document.getElementById('fatBar').style.width = Math.min(100, Math.round(currentProfileData.fat/currentProfileData.fatT*100))+'%';
+
+  // Update detail modal values
+  document.getElementById('dCalConsumed').textContent = `${currentProfileData.calories} / ${currentProfileData.total}`;
+  const modalBars = document.querySelectorAll('#detailModal .detail-bar');
+  const modalVals = document.querySelectorAll('#detailModal .detail-val');
+  if (modalBars.length >= 4) {
+    modalBars[0].style.width = Math.min(100, Math.round(currentProfileData.calories / currentProfileData.total * 100)) + '%';
+    modalBars[1].style.width = Math.min(100, Math.round(currentProfileData.prot / currentProfileData.protT * 100)) + '%';
+    modalBars[2].style.width = Math.min(100, Math.round(currentProfileData.carb / currentProfileData.carbT * 100)) + '%';
+    modalBars[3].style.width = Math.min(100, Math.round(currentProfileData.fat / currentProfileData.fatT * 100)) + '%';
+    
+    modalVals[0].textContent = `${currentProfileData.calories} / ${currentProfileData.total}`;
+    modalVals[1].textContent = `${currentProfileData.prot}g / ${currentProfileData.protT}g`;
+    modalVals[2].textContent = `${currentProfileData.carb}g / ${currentProfileData.carbT}g`;
+    modalVals[3].textContent = `${currentProfileData.fat}g / ${currentProfileData.fatT}g`;
+  }
+}
+
+function saveDashboardMeals() {
+  allDashboardMeals[currentProfile] = mealDays;
+  localStorage.setItem('nutriDashboardMeals', JSON.stringify(allDashboardMeals));
+}
+
+function renderMeals() {
+  const day = mealDays[mealDayIndex] || { day: 'Day 1', meals: [] };
+  document.getElementById('mealDayLabel').textContent = day.day;
+  const row = document.getElementById('mealsRow');
+  row.innerHTML = day.meals.map((m, idx) => `
+    <div class="meal-card" onclick="toggleMealDone(${idx})">
+      <div class="meal-img-wrap">
+        <img class="meal-img" src="${m.img}" alt="${m.name}" onerror="this.src='https://via.placeholder.com/400x200/dcfce7/15803d?text=🍽️'"/>
+        <div class="meal-time-badge badge-${m.badge}">${m.type}</div>
+        <div class="meal-check" style="${m.done?'background:var(--primary);color:white;border-color:var(--primary);':''}">
+          ${m.done?'✓':''}
+        </div>
+      </div>
+      <div class="meal-body">
+        <div class="meal-name">${m.name}</div>
+        <div class="meal-sub">${m.sub}</div>
+        <div class="meal-meta">
+          <span>🔥 <strong>${m.cal}</strong> kcal</span>
+          <span>⏱ ${m.time}</span>
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+function toggleMealDone(idx) {
+  const day = mealDays[mealDayIndex];
+  if (day && day.meals[idx]) {
+    day.meals[idx].done = !day.meals[idx].done;
+    saveDashboardMeals();
+    recalculateNutrients();
+    renderMeals();
+    showToast(`🍽️ ${day.meals[idx].name} ${day.meals[idx].done ? 'marked as consumed!' : 'removed from consumed list.'}`);
+  }
+}
+
+function changeMealDay(dir) {
+  mealDayIndex = (mealDayIndex + dir + mealDays.length) % mealDays.length;
+  renderMeals();
+  recalculateNutrients();
+  showToast(`📅 Switched to ${mealDays[mealDayIndex].day}`);
+}
+
+// ===== WATER GLASSES =====
+let glassCount = profiles[currentProfile].glasses;
+function renderGlasses() {
+  const container = document.getElementById('waterGlasses');
+  container.innerHTML = Array.from({length:8}, (_,i) => {
+    const state = i < glassCount ? (i === glassCount-1 && glassCount < 8 ? 'half' : 'full') : 'empty';
+    return `<div class="glass-item" onclick="setGlasses(${i+1})" title="Glass ${i+1}">
+      <div class="glass-icon"><div class="glass-fill ${state}"></div></div>
+      <div class="glass-label">${i+1}</div>
+    </div>`;
+  }).join('');
+  document.getElementById('glassCount').textContent = glassCount;
+  document.getElementById('waterPercent').textContent = Math.round(glassCount/8*100) + '%';
+  document.getElementById('waterBar').style.width = (glassCount/8*100) + '%';
+  const rem = 8 - glassCount;
+  document.getElementById('waterRemainingText').textContent = rem > 0 ? `${rem} more glass${rem>1?'es':''} to go` : '🎉 Daily target achieved!';
+}
+
+function addGlass() {
+  if (glassCount < 8) {
+    glassCount++;
+    profiles[currentProfile].glasses = glassCount;
+    localStorage.setItem('nutriProfiles', JSON.stringify(profiles));
+    renderGlasses();
+    showToast('💧 Glass added! Great hydration!');
+  } else {
+    showToast('🎉 Already reached your daily goal!');
+  }
+}
+
+function setGlasses(n) {
+  glassCount = n;
+  profiles[currentProfile].glasses = glassCount;
+  localStorage.setItem('nutriProfiles', JSON.stringify(profiles));
+  renderGlasses();
+  showToast(`💧 ${n} glasses logged`);
+}
+
+// ===== PROFILE SWITCH =====
+function switchProfile(btn, key) {
+  if (!profiles[key]) return;
+  document.querySelectorAll('.p-chip').forEach(c => c.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  
+  currentProfile = key;
+  localStorage.setItem('activeProfileId', key);
+
+  const p = profiles[key];
+  document.getElementById('welcomeText').textContent = p.welcome;
+  document.getElementById('headerName').textContent = p.name;
+  document.getElementById('headerAvatar').textContent = p.avatar;
+  document.getElementById('sidebarName').textContent = p.name;
+  document.getElementById('sidebarSub').textContent = 'Health Profile Active';
+  document.getElementById('sidebarAvatar').textContent = p.avatar;
+  
+  glassCount = p.glasses;
+  renderGlasses();
+
+  mealDays = allDashboardMeals[key] || defaultMealPlans[key] || defaultMealPlans.ali;
+  mealDayIndex = 0;
+  
+  recalculateNutrients();
+  renderMeals();
+
+  // Highlight correct chip on start/reload
+  document.querySelectorAll('.p-chip').forEach(c => {
+    if (c.getAttribute('data-key') === key) {
+      c.classList.add('active');
+    } else {
+      c.classList.remove('active');
+    }
+  });
+
+  // Refresh countdown/stats if needed
+  updateCountdowns();
+
+  showToast(`👤 Switched to ${p.name}`);
+}
+
+function updateCountdowns() {
+  const p = profiles[currentProfile];
+  if (currentProfile === 'ahmed') {
+    document.getElementById('sehriTime').textContent = '04:42 AM';
+    document.getElementById('iftarCountdown').textContent = '06:21 PM';
+  } else if (currentProfile === 'zoya') {
+    document.getElementById('sehriTime').textContent = '04:41 AM';
+    document.getElementById('iftarCountdown').textContent = '06:22 PM';
+  } else {
+    document.getElementById('sehriTime').textContent = '04:40 AM';
+    document.getElementById('iftarCountdown').textContent = '06:20 PM';
+  }
+}
+
+// ===== WEIGHT CHART =====
+const weightData = {
+  '7': { labels:['Mon','Tue','Wed','Thu','Fri','Sat','Sun'], data:[82.5,82.1,81.8,81.5,81.2,80.9,80.3], change:'-4.2 kg this week · On track!' },
+  '30': { labels:['W1','W2','W3','W4'], data:[85,83.5,82.1,80.3], change:'-4.7 kg this month · Excellent!' },
+  '90': { labels:['Jan','Feb','Mar'], data:[89,85,80.3], change:'-8.7 kg in 3 months · Amazing!' }
+};
+let weightChart;
+function buildWeightChart(period='7') {
+  const ctx = document.getElementById('weightChart').getContext('2d');
+  const d = weightData[period];
+  if (weightChart) weightChart.destroy();
+  weightChart = new Chart(ctx, {
+    type:'line',
+    data: { labels:d.labels, datasets:[{ label:'Weight (kg)', data:d.data, borderColor:'#15803d', backgroundColor:'rgba(21,128,61,0.08)', borderWidth:2.5, tension:0.4, fill:true, pointRadius:4, pointBackgroundColor:'#15803d', pointBorderColor:'white', pointBorderWidth:2 }] },
+    options: { plugins:{ legend:{display:false} }, scales:{ x:{grid:{display:false}, border:{display:false}, ticks:{color:'#94a3b8',font:{size:11}}}, y:{grid:{color:'#f1f5f9'}, border:{display:false}, ticks:{color:'#94a3b8',font:{size:11}}} }, animation:{duration:600,easing:'easeInOutQuart'} }
+  });
+}
+function updateWeightChart(period) {
+  buildWeightChart(period);
+  document.getElementById('weightChange').textContent = weightData[period].change;
+  showToast(`📈 Chart updated — ${period === '7' ? '7 Days' : period === '30' ? '30 Days' : '3 Months'}`);
+}
+
+// ===== DONUT CHART =====
+let donutChart;
+function buildDonut(consumed, total) {
+  const ctx = document.getElementById('donutChart').getContext('2d');
+  if (donutChart) donutChart.destroy();
+  donutChart = new Chart(ctx, {
+    type:'doughnut',
+    data: { datasets:[{ data:[consumed, Math.max(1, total-consumed)], backgroundColor:['#15803d','#e2e8f0'], borderWidth:0, hoverOffset:0 }] },
+    options: { cutout:'75%', plugins:{legend:{display:false},tooltip:{enabled:false}}, animation:{duration:800,easing:'easeInOutQuart'} }
+  });
+}
+function updateDonut(c, t) { buildDonut(c, t); }
+
+// ===== RAMADAN TOGGLE =====
+let ramadanActive = true;
+function toggleRamadanMode(btn) {
+  ramadanActive = !ramadanActive;
+  document.getElementById('ramadanBanner').style.display = ramadanActive ? 'flex' : 'none';
+  btn.classList.toggle('active', ramadanActive);
+  btn.textContent = ramadanActive ? '🌙 Ramadan Mode' : 'Ramadan Mode';
+  showToast(ramadanActive ? '🌙 Ramadan Mode ON' : 'Ramadan Mode OFF');
+}
+
+// ===== MODAL CONTROLS =====
+function openDetailModal() { document.getElementById('detailModal').classList.add('open'); }
+      function closeDetailModal(e) { if(e.target === document.getElementById('detailModal')) document.getElementById('detailModal').classList.remove('open'); }
+
+// ===== SETTINGS MODAL =====
+function openSettingsModal() {
+  const key = localStorage.getItem('OPENROUTER_API_KEY') || '';
+  document.getElementById('settingsApiKey').value = key;
+  document.getElementById('settingsModal').classList.add('open');
+}
+function closeSettingsModal(e) {
+  if (e.target === document.getElementById('settingsModal') || e.target.classList.contains('modal-overlay')) {
+    document.getElementById('settingsModal').classList.remove('open');
+  }
+}
+function saveSettings() {
+  const keyVal = document.getElementById('settingsApiKey').value.trim();
+  localStorage.setItem('OPENROUTER_API_KEY', keyVal);
+  document.getElementById('settingsModal').classList.remove('open');
+  showToast('⚙️ Settings saved successfully!');
+}
+
+// Attach settings modal trigger to sidebarSettings link
+document.addEventListener('DOMContentLoaded', () => {
+  const sidebarSettings = document.querySelector('.sidebar-link[onclick*="Settings"]');
+  if (sidebarSettings) {
+    sidebarSettings.removeAttribute('onclick');
+    sidebarSettings.addEventListener('click', openSettingsModal);
+  }
+});
+
+// ===== LANG TOGGLE =====
+function toggleLang(btn) {
+  btn.classList.toggle('active');
+  const t = document.getElementById('welcomeText');
+  const p = profiles[currentProfile];
+  if (btn.classList.contains('active')) {
+    t.textContent = currentProfile === 'zoya' ? 'صبح بخیر، زویا! 😊' : `السلام علیکم، ${p.name.split(' ')[0]} 👋`;
+    t.style.fontFamily = "'Noto Nastaliq Urdu', serif";
+    t.style.direction = 'rtl';
+    showToast('اردو موڈ فعال');
+  } else {
+    t.textContent = p.welcome;
+    t.style.fontFamily = 'inherit';
+    t.style.direction = 'ltr';
+    showToast('English Mode Active');
+  }
+}
+
+// ===== SWITCH TAB =====
+function switchTab(btn, tab) {
+  document.querySelectorAll('.header-nav-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+// ===== TOAST =====
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2800);
+}
+
+function renderProfileChips() {
+  const chipsContainer = document.querySelector('.profile-chips');
+  if (!chipsContainer) return;
+  chipsContainer.innerHTML = '';
+  
+  Object.entries(profiles).forEach(([key, p]) => {
+    const btn = document.createElement('button');
+    btn.className = 'p-chip';
+    btn.setAttribute('data-key', key);
+    btn.textContent = p.name.split(' ')[0];
+    btn.onclick = (e) => switchProfile(e.target, key);
+    chipsContainer.appendChild(btn);
+  });
+  
+  const addBtn = document.createElement('button');
+  addBtn.className = 'add-chip';
+  addBtn.onclick = () => window.location = 'family-profiles.html';
+  addBtn.title = 'Add Profile';
+  addBtn.textContent = '+';
+  chipsContainer.appendChild(addBtn);
+}
+
+// ===== INIT =====
+// Setup initial switch profile to align UI & local storage on load
+renderProfileChips();
+switchProfile(null, currentProfile);
+buildWeightChart('7');
+</script>
+</body>
+</html>
+

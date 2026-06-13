@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>NutriAI – Health Reports</title>
+  <link rel="stylesheet" href="styles.css"/>
+  <style>
+    body { background: var(--page-bg); overflow: hidden; }
+    .content-area { flex:1; overflow-y:auto; padding:24px; }
+    .page-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:24px; }
+    .page-title { font-size:24px; font-weight:900; letter-spacing:-0.5px; }
+    .page-sub { font-size:13px; color:var(--text-muted); margin-top:3px; }
+    .upload-btn { display:flex; align-items:center; gap:8px; padding:10px 20px; background:var(--primary); color:white; border:none; border-radius:var(--radius-full); font-size:14px; font-weight:600; cursor:pointer; transition:all 0.2s; }
+    .upload-btn:hover { background:var(--primary-hover); transform:translateY(-1px); box-shadow:var(--shadow-green); }
+    /* FILTER TABS */
+    .filter-tabs { display:flex; gap:8px; margin-bottom:20px; flex-wrap:wrap; }
+    .filter-tab { padding:7px 16px; border-radius:var(--radius-full); font-size:12px; font-weight:600; cursor:pointer; border:1.5px solid var(--border); color:var(--text-secondary); background:white; transition:all 0.2s; }
+    .filter-tab.active { background:var(--primary); color:white; border-color:var(--primary); }
+    .filter-tab:hover:not(.active) { border-color:var(--primary); color:var(--primary); }
+    /* REPORTS GRID */
+    .reports-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:24px; }
+    .report-card { background:white; border:1px solid var(--border); border-radius:var(--radius-lg); padding:18px; cursor:pointer; transition:all 0.25s; }
+    .report-card:hover { transform:translateY(-2px); box-shadow:var(--shadow); border-color:var(--border-green); }
+    .report-top { display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:14px; }
+    .report-type-icon { width:44px; height:44px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:20px; flex-shrink:0; }
+    .report-badge { padding:3px 10px; border-radius:var(--radius-full); font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; }
+    .badge-normal { background:#dcfce7; color:#15803d; }
+    .badge-attention { background:#fef3c7; color:#d97706; }
+    .badge-critical { background:#fee2e2; color:#dc2626; }
+    .report-name { font-size:15px; font-weight:800; margin-bottom:2px; }
+    .report-date { font-size:11px; color:var(--text-muted); margin-bottom:12px; }
+    .report-findings { display:flex; flex-direction:column; gap:6px; margin-bottom:14px; }
+    .finding-row { display:flex; align-items:center; justify-content:space-between; padding:6px 10px; background:var(--page-bg); border-radius:var(--radius-sm); }
+    .finding-label { font-size:11px; color:var(--text-secondary); }
+    .finding-val { font-size:12px; font-weight:700; }
+    .finding-val.ok { color:#15803d; }
+    .finding-val.warn { color:#d97706; }
+    .finding-val.bad { color:#dc2626; }
+    .report-ai-insight { background:var(--light-bg); border:1px solid var(--border-green); border-radius:8px; padding:10px; margin-bottom:12px; }
+    .ai-insight-label { font-size:10px; font-weight:700; color:var(--primary); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:3px; }
+    .ai-insight-text { font-size:12px; color:#166534; line-height:1.5; }
+    .report-actions { display:flex; gap:8px; }
+    .rpt-btn { flex:1; padding:7px; border-radius:var(--radius-sm); font-size:12px; font-weight:600; cursor:pointer; border:1.5px solid var(--border); background:white; color:var(--text-secondary); transition:all 0.15s; }
+    .rpt-btn:hover { border-color:var(--primary); color:var(--primary); }
+    .rpt-btn.primary { background:var(--primary); color:white; border-color:var(--primary); }
+    .rpt-btn.primary:hover { background:var(--primary-hover); }
+    /* UPLOAD AREA */
+    .upload-section { background:white; border:2px dashed var(--border-green); border-radius:var(--radius-lg); padding:28px; text-align:center; transition:all 0.2s; cursor:pointer; margin-bottom:24px; }
+    .upload-section:hover, .upload-section.dragover { background:var(--light-bg); border-color:var(--primary); }
+    .upload-icon { font-size:36px; margin-bottom:10px; }
+    .upload-title { font-size:15px; font-weight:700; color:var(--text-primary); margin-bottom:4px; }
+    .upload-sub { font-size:12px; color:var(--text-muted); }
+    .upload-formats { display:flex; gap:6px; justify-content:center; margin-top:12px; }
+    .format-tag { padding:3px 10px; background:var(--primary-xlight); color:var(--primary); border-radius:var(--radius-full); font-size:11px; font-weight:600; }
+    /* MODAL */
+    .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.45); z-index:1000; display:none; align-items:center; justify-content:center; }
+    .modal-overlay.open { display:flex; }
+    .modal-box { background:white; border-radius:24px; padding:28px; max-width:520px; width:90%; max-height:85vh; overflow-y:auto; box-shadow:0 20px 60px rgba(0,0,0,0.2); animation:modalPop 0.25s ease; }
+    @keyframes modalPop { from{transform:scale(0.92);opacity:0;} to{transform:scale(1);opacity:1;} }
+    .modal-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; }
+    .modal-title { font-size:18px; font-weight:800; }
+    .modal-close { width:32px; height:32px; border-radius:50%; background:var(--page-bg); border:1px solid var(--border); display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:16px; }
+    .toast { position:fixed; bottom:24px; right:24px; background:#1e293b; color:white; padding:12px 20px; border-radius:12px; font-size:13px; font-weight:600; z-index:9999; opacity:0; transform:translateY(10px); transition:all 0.3s; pointer-events:none; }
+    .toast.show { opacity:1; transform:translateY(0); }
+  </style>
+</head>
+<body>
+<div class="app-layout">
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="sidebar-logo-icon"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M12 2C8.5 2 6 5 6 8c0 2.5 1.5 4.5 3.5 5.5L8 20h8l-1.5-6.5C16.5 12.5 18 10.5 18 8c0-3-2.5-6-6-6z" fill="white"/></svg></div>
+      <span class="sidebar-logo-text">NutriAI</span>
+    </div>
+    <div class="family-card">
+      <div class="family-avatar">FA</div>
+      <div class="family-name">Family Health</div>
+      <div class="family-sub">Managing 4 Profiles</div>
+    </div>
+    <nav class="sidebar-nav">
+      <a href="dashboard.html" class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>Dashboard</a>
+      <a href="meal-plan.html" class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8h1a4 4 0 010 8h-1"/><path d="M2 8h16v9a4 4 0 01-4 4H6a4 4 0 01-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg>Meal Plan</a>
+      <a href="family-profiles.html" class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>Family Profiles</a>
+      <a href="health-reports.html" class="nav-item active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>Health Reports</a>
+      <a href="nutri-ai.html" class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2C8.5 2 6 5 6 8c0 2.5 1.5 4.5 3.5 5.5L8 20h8l-1.5-6.5C16.5 12.5 18 10.5 18 8c0-3-2.5-6-6-6z"/></svg>NutriAI</a>
+    </nav>
+    <div class="sidebar-bottom">
+      <button class="upgrade-btn" onclick="showToast('⭐ Unlimited reports with Pro!')">⚡ Upgrade to Pro</button>
+      <div class="sidebar-link" onclick="openSettingsModal()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93l-1.41 1.41M4.93 4.93l1.41 1.41M12 2v2M12 20v2M19.07 19.07l-1.41-1.41M4.93 19.07l1.41-1.41M22 12h-2M4 12H2"/></svg>Settings</div>
+      <div class="sidebar-link" onclick="window.location='nutri-ai.html'"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>Support</div>
+    </div>
+  </aside>
+
+  <div class="main-content">
+    <header class="app-header">
+      <div class="header-logo-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" stroke="white" stroke-width="2"/></svg></div>
+      <span class="header-brand">NutriAI</span>
+      <div class="header-divider"></div>
+      <span class="header-title">Health Reports</span>
+      <div class="header-spacer"></div>
+      <div class="header-actions">
+        <button class="icon-btn" onclick="showToast('🔔 2 reports need your attention!')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg></button>
+        <div class="user-chip"><div class="user-avatar">FA</div>Family</div>
+      </div>
+    </header>
+
+    <div class="content-area">
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">Health Reports 📋</h1>
+          <p class="page-sub">AI-analyzed medical reports & lab results</p>
+        </div>
+        <button class="upload-btn" onclick="openUploadModal()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          Upload Report
+        </button>
+      </div>
+
+      <!-- FILTER TABS -->
+      <div class="filter-tabs">
+        <button class="filter-tab active" onclick="filterReports(this,'all')">All Reports</button>
+        <button class="filter-tab" onclick="filterReports(this,'blood')">🩸 Blood Tests</button>
+        <button class="filter-tab" onclick="filterReports(this,'glucose')">🍬 Glucose</button>
+        <button class="filter-tab" onclick="filterReports(this,'bp')">❤️ Blood Pressure</button>
+        <button class="filter-tab" onclick="filterReports(this,'xray')">🩻 X-Ray / Scan</button>
+      </div>
+
+      <!-- UPLOAD DRAG AREA -->
+      <div class="upload-section" id="uploadZone" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event)" onclick="document.getElementById('fileInput').click()">
+        <input type="file" id="fileInput" accept=".pdf,.jpg,.jpeg,.png" style="display:none" onchange="handleFileSelect(this)"/>
+        <div class="upload-icon">📤</div>
+        <div class="upload-title">Drop your report here or click to upload</div>
+        <div class="upload-sub">NutriAI will automatically analyze and extract health data using AI OCR</div>
+        <div class="upload-formats">
+          <span class="format-tag">PDF</span>
+          <span class="format-tag">JPG</span>
+          <span class="format-tag">PNG</span>
+        </div>
+      </div>
+
+      <!-- REPORTS GRID -->
+      <div class="reports-grid" id="reportsGrid">
+
+        <!-- Dynamic reports will be rendered here by JS -->
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- UPLOAD MODAL -->
+<div class="modal-overlay" id="uploadModal" onclick="closeUploadModal(event)">
+  <div class="modal-box">
+    <div class="modal-header">
+      <span class="modal-title">📤 Upload Health Report</span>
+      <button class="modal-close" onclick="document.getElementById('uploadModal').classList.remove('open')">✕</button>
+    </div>
+    <div style="margin-bottom:16px;">
+      <label style="font-size:13px;font-weight:600;display:block;margin-bottom:8px;">Select Family Member</label>
+      <select id="uploadPatientSelect" style="width:100%;padding:10px 14px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:inherit;">
+        <!-- Dynamic options -->
+      </select>
+    </div>
+    <div style="margin-bottom:16px;">
+      <label style="font-size:13px;font-weight:600;display:block;margin-bottom:8px;">Report Type</label>
+      <select id="uploadTypeSelect" style="width:100%;padding:10px 14px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:inherit;">
+        <option value="blood">Blood Test (CBC)</option>
+        <option value="glucose">Glucose Test</option>
+        <option value="bp">Blood Pressure</option>
+        <option value="lipid">Lipid Profile</option>
+        <option value="thyroid">Thyroid Test</option>
+        <option value="xray">X-Ray / MRI</option>
+        <option value="other">Other</option>
+      </select>
+    </div>
+    <div style="background:var(--page-bg);border:2px dashed var(--border-green);border-radius:12px;padding:24px;text-align:center;cursor:pointer;margin-bottom:16px;" onclick="document.getElementById('fileInput2').click()">
+      <input type="file" id="fileInput2" accept=".pdf,.jpg,.jpeg,.png" style="display:none" onchange="handleModalFile(this)"/>
+      <div style="font-size:28px;margin-bottom:8px;">📎</div>
+      <div style="font-size:13px;font-weight:600;color:var(--text-primary);margin-bottom:4px;">Click to select file</div>
+      <div id="selectedFileName" style="font-size:11px;color:var(--text-muted);">PDF, JPG, PNG accepted</div>
+    </div>
+    <div style="display:flex;gap:10px;">
+      <button style="flex:1;padding:11px;border-radius:var(--radius-full);border:1.5px solid var(--border);background:white;font-size:14px;font-weight:600;cursor:pointer;" onclick="document.getElementById('uploadModal').classList.remove('open')">Cancel</button>
+      <button style="flex:2;padding:11px;border-radius:var(--radius-full);background:var(--primary);color:white;border:none;font-size:14px;font-weight:700;cursor:pointer;" onclick="simulateUpload()">🤖 Analyze with NutriAI</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ===== SHARED DATABASE HELPERS =====
+function initNutriDatabase() {
+  const defaultProfiles = {
+    ali: {
+      id: 'ali',
+      name: 'Ali Khan',
+      welcome: 'As-salamu Alaykum, Ali 👋',
+      avatar: 'AK',
+      age: 34,
+      gender: 'Male',
+      relation: 'Head of Family',
+      condition: 'healthy',
+      condText: '✅ Healthy',
+      condClass: 'cond-healthy',
+      weight: 82.3,
+      height: 178,
+      calories: 840,
+      total: 1840,
+      prot: 45,
+      protT: 120,
+      carb: 110,
+      carbT: 290,
+      fat: 28,
+      fatT: 65,
+      glasses: 3,
+      waterGoal: 3,
+      statusLabel: 'Daily Cal',
+      statusVal: '1,840'
+    },
+    zoya: {
+      id: 'zoya',
+      name: 'Zoya Khan',
+      welcome: 'Good Morning, Zoya! 😊',
+      avatar: 'ZK',
+      age: 30,
+      gender: 'Female',
+      relation: 'Spouse',
+      condition: 'healthy',
+      condText: '✅ Healthy',
+      condClass: 'cond-healthy',
+      weight: 62.1,
+      height: 162,
+      calories: 620,
+      total: 1600,
+      prot: 55,
+      protT: 100,
+      carb: 80,
+      carbT: 220,
+      fat: 22,
+      fatT: 55,
+      glasses: 5,
+      waterGoal: 2.5,
+      statusLabel: 'Daily Cal',
+      statusVal: '1,600'
+    },
+    ahmed: {
+      id: 'ahmed',
+      name: 'Ahmed Khan',
+      welcome: 'As-salamu Alaykum, Ahmed 👋',
+      avatar: 'AK',
+      age: 62,
+      gender: 'Male',
+      relation: 'Father',
+      condition: 'diabetes',
+      condText: '🩺 Diabetes Control',
+      condClass: 'cond-diabetes',
+      weight: 78.4,
+      height: 170,
+      calories: 1050,
+      total: 1840,
+      prot: 70,
+      protT: 120,
+      carb: 140,
+      carbT: 290,
+      fat: 35,
+      fatT: 65,
+      glasses: 2,
+      waterGoal: 3,
+      statusLabel: 'Glucose mg/dL',
+      statusVal: '124'
+    },
+    sara: {
+      id: 'sara',
+      name: 'Sara Khan',
+      welcome: 'Good Morning, Sara! 😊',
+      avatar: 'SK',
+      age: 58,
+      gender: 'Female',
+      relation: 'Mother',
+      condition: 'bp',
+      condText: '💙 High BP Watch',
+      condClass: 'cond-bp',
+      weight: 70.2,
+      height: 158,
+      calories: 900,
+      total: 1700,
+      prot: 50,
+      protT: 110,
+      carb: 120,
+      carbT: 250,
+      fat: 30,
+      fatT: 60,
+      glasses: 4,
+      waterGoal: 2.5,
+      statusLabel: 'BP (mmHg)',
+      statusVal: '142/88'
+    }
+  };
+
+  if (!localStorage.getItem('nutriProfiles')) {
+    localStorage.setItem('nutriProfiles', JSON.stringify(defaultProfiles));
+  }
+  if (!localStorage.getItem('activeProfileId')) {
+    localStorage.setItem('activeProfileId', 'ali');
+  }
+
+  const defaultReports = [
+    { id: 1, type: 'blood', name: 'CBC Blood Test', patient: 'ahmed', patientName: 'Ahmed Khan', date: 'Jun 10, 2026', timeAgo: '3 days ago', badgeClass: 'badge-attention', badgeText: '⚠️ Attention', findings: [{label:'HbA1c', val:'7.2% ↑', cls:'warn'}, {label:'Fasting Glucose', val:'124 mg/dL ↑', cls:'warn'}, {label:'Cholesterol (LDL)', val:'98 mg/dL ✓', cls:'ok'}, {label:'Hemoglobin', val:'14.2 g/dL ✓', cls:'ok'}], insight: 'HbA1c 7.2% — diabetes not well controlled. More fiber, less sugar, and daily 30-min walk recommended. Retest in 3 months.', file: 'ahmed-cbc.pdf' },
+    { id: 2, type: 'glucose', name: 'Glucose Tolerance Test', patient: 'zoya', patientName: 'Zoya Khan', date: 'Jun 8, 2026', timeAgo: '5 days ago', badgeClass: 'badge-normal', badgeText: '✅ Normal', findings: [{label:'Fasting Glucose', val:'88 mg/dL ✓', cls:'ok'}, {label:'2hr Post-Glucose', val:'112 mg/dL ✓', cls:'ok'}, {label:'HbA1c', val:'5.4% ✓', cls:'ok'}], insight: 'Excellent! Glucose levels are normal. Continue current diet. Consider annual checkup to maintain this healthy status.', file: 'zoya-glucose.pdf' },
+    { id: 3, type: 'bp', name: 'Blood Pressure Report', patient: 'sara', patientName: 'Sara Khan', date: 'Jun 12, 2026', timeAgo: 'Yesterday', badgeClass: 'badge-critical', badgeText: '🚨 Critical', findings: [{label:'Systolic BP', val:'158 mmHg ↑↑', cls:'bad'}, {label:'Diastolic BP', val:'95 mmHg ↑', cls:'bad'}, {label:'Heart Rate', val:'72 bpm ✓', cls:'ok'}, {label:'Sodium (Urine)', val:'High ↑', cls:'warn'}], insight: 'BP critically elevated (Stage 2 Hypertension). Reduce sodium <1,500mg/day. Avoid pickle, papad, processed foods. Consult doctor urgently!', file: 'sara-bp.pdf' },
+    { id: 4, type: 'blood', name: 'Full Body Checkup', patient: 'ali', patientName: 'Ali Khan', date: 'Jun 1, 2026', timeAgo: '12 days ago', badgeClass: 'badge-normal', badgeText: '✅ Normal', findings: [{label:'Total Cholesterol', val:'175 mg/dL ✓', cls:'ok'}, {label:'Vitamin D', val:'22 ng/mL ↓', cls:'warn'}, {label:'TSH (Thyroid)', val:'2.1 mIU/L ✓', cls:'ok'}, {label:'Liver (ALT)', val:'28 U/L ✓', cls:'ok'}], insight: 'Overall healthy! Vitamin D is low — take daily supplements (1000 IU) and get 15 min sunlight. Annual follow-up recommended.', file: 'ali-checkup.pdf' }
+  ];
+
+  if (!localStorage.getItem('nutriReports')) {
+    localStorage.setItem('nutriReports', JSON.stringify(defaultReports));
+  }
+}
+
+initNutriDatabase();
+
+let profiles = JSON.parse(localStorage.getItem('nutriProfiles'));
+let reports = JSON.parse(localStorage.getItem('nutriReports'));
+let activeFilter = 'all';
+
+function renderReports() {
+  const grid = document.getElementById('reportsGrid');
+  grid.innerHTML = '';
+
+  const filtered = reports.filter(r => {
+    if (activeFilter === 'all') return true;
+    return r.type === activeFilter;
+  });
+
+  if (filtered.length === 0) {
+    grid.innerHTML = `<div style="grid-column:span 2;text-align:center;padding:40px;color:var(--text-muted);font-size:14px;">No health reports match this category.</div>`;
+    return;
+  }
+
+  filtered.forEach(r => {
+    const card = document.createElement('div');
+    card.className = 'report-card';
+    card.style.animation = 'fadeInUp 0.3s ease both';
+    card.onclick = () => openReport(r.name);
+    
+    // Type icon mapping
+    let icon = '📋';
+    if (r.type === 'blood') icon = '🩸';
+    else if (r.type === 'glucose') icon = '🍬';
+    else if (r.type === 'bp') icon = '❤️';
+    else if (r.type === 'lipid') icon = '🧪';
+    else if (r.type === 'xray') icon = '🩻';
+
+    let iconBg = '#f1f5f9';
+    if (r.type === 'blood') iconBg = '#fee2e2';
+    else if (r.type === 'glucose') iconBg = '#dcfce7';
+    else if (r.type === 'bp') iconBg = '#eff6ff';
+
+    const findingsHTML = r.findings.map(f => `
+      <div class="finding-row">
+        <span class="finding-label">${f.label}</span>
+        <span class="finding-val ${f.cls}">${f.val}</span>
+      </div>`).join('');
+
+    card.innerHTML = `
+      <div class="report-top">
+        <div class="report-type-icon" style="background:${iconBg};">${icon}</div>
+        <span class="report-badge ${r.badgeClass}">${r.badgeText}</span>
+      </div>
+      <div class="report-name">${r.name}</div>
+      <div class="report-date">${r.patientName} · ${r.date} · ${r.timeAgo}</div>
+      <div class="report-findings">
+        ${findingsHTML}
+      </div>
+      <div class="report-ai-insight">
+        <div class="ai-insight-label">🤖 NutriAI Analysis</div>
+        <div class="ai-insight-text">${r.insight}</div>
+      </div>
+      <div class="report-actions">
+        <button class="rpt-btn" onclick="downloadReport(event,'${r.file}')">⬇ Download</button>
+        <button class="rpt-btn" onclick="shareReport(event,'${r.name}')">↗ Share</button>
+        <button class="rpt-btn primary" onclick="askNutriAI(event,'${r.patient}', '${r.name}')">🤖 Ask NutriAI</button>
+      </div>`;
+    
+    grid.appendChild(card);
+  });
+}
+
+function filterReports(btn, type) {
+  document.querySelectorAll('.filter-tab').forEach(t=>t.classList.remove('active'));
+  btn.classList.add('active');
+  activeFilter = type;
+  renderReports();
+  showToast(`📋 Filtered: ${btn.textContent}`);
+}
+
+function openReport(name) {
+  showToast(`📊 Opening ${name} full report details...`);
+}
+
+function downloadReport(e, filename) {
+  e.stopPropagation();
+  showToast(`⬇️ Downloading report file "${filename}"...`);
+}
+
+function shareReport(e, name) {
+  e.stopPropagation();
+  showToast(`↗️ Shareable link for "${name}" copied to clipboard!`);
+}
+
+function askNutriAI(e, patientId, reportName) {
+  e.stopPropagation();
+  
+  // Set active profile to this patient
+  localStorage.setItem('activeProfileId', patientId);
+  
+  // Create a customized smart question based on report
+  const p = profiles[patientId] || { name: 'Ahmed' };
+  let q = `Mera ${reportName} ka report analyze karke details batao health tips ke sath.`;
+  if (reportName.includes('Blood Test') || reportName.includes('CBC')) {
+    q = `Meri CBC Blood Test report aayi hai jisme HbA1c elevated hai. Mujh (Ahmed Khan) ke liye diabetes-friendly diet aur lifestyle suggestions do.`;
+  } else if (reportName.includes('Blood Pressure') || reportName.includes('BP')) {
+    q = `Sara Khan ka systolic BP 158 mmHg aur diastolic BP 95 mmHg hai (Stage 2 Hypertension). Diet tips do sodium control ke liye.`;
+  } else if (reportName.includes('Checkup')) {
+    q = `Mera full body checkup report mein Vitamin D level 22 ng/mL (low) aaya hai. Konse Pakistani foods ya supplements se ise improve kiya jaye?`;
+  }
+  
+  sessionStorage.setItem('nutriQuestion', q);
+  window.location = 'nutri-ai.html';
+}
+
+function populateDropdowns() {
+  const patientSelect = document.getElementById('uploadPatientSelect');
+  patientSelect.innerHTML = Object.entries(profiles).map(([id, p]) => `
+    <option value="${id}">${p.name} (${p.relation})</option>`).join('');
+}
+
+function openUploadModal() {
+  populateDropdowns();
+  document.getElementById('selectedFileName').textContent = 'PDF, JPG, PNG accepted';
+  document.getElementById('uploadModal').classList.add('open');
+}
+
+function closeUploadModal(e) {
+  if (e.target === document.getElementById('uploadModal') || e.target.classList.contains('modal-overlay')) {
+    document.getElementById('uploadModal').classList.remove('open');
+  }
+}
+
+function handleDragOver(e) {
+  e.preventDefault();
+  document.getElementById('uploadZone').classList.add('dragover');
+}
+function handleDragLeave() {
+  document.getElementById('uploadZone').classList.remove('dragover');
+}
+function handleDrop(e) {
+  e.preventDefault();
+  document.getElementById('uploadZone').classList.remove('dragover');
+  const file = e.dataTransfer.files[0];
+  if (file) {
+    showToast(`🤖 Analyzing "${file.name}" with NutriAI OCR...`);
+    simulateAnalysis(file.name, 'ali', 'other');
+  }
+}
+function handleFileSelect(input) {
+  if (input.files[0]) {
+    showToast(`🤖 Analyzing "${input.files[0].name}" with NutriAI OCR...`);
+    simulateAnalysis(input.files[0].name, 'ali', 'other');
+  }
+}
+function handleModalFile(input) {
+  if (input.files[0]) {
+    document.getElementById('selectedFileName').textContent = `✅ Selected: ${input.files[0].name}`;
+  }
+}
+
+function simulateUpload() {
+  const patientId = document.getElementById('uploadPatientSelect').value;
+  const type = document.getElementById('uploadTypeSelect').value;
+  const fileName = document.getElementById('selectedFileName').textContent.replace('✅ Selected: ', '') || 'medical-report.pdf';
+  
+  if (fileName.includes('accepted') || fileName === '') {
+    showToast('❌ Please select a report file first!');
+    return;
+  }
+  
+  document.getElementById('uploadModal').classList.remove('open');
+  showToast('🤖 NutriAI is analyzing your report...');
+  
+  setTimeout(() => {
+    simulateAnalysis(fileName, patientId, type);
+  }, 1500);
+}
+
+function simulateAnalysis(fileName, patientId, type) {
+  const p = profiles[patientId] || { name: 'Ali Khan' };
+  
+  // Create randomized smart findings based on type
+  let name = 'Lab Report';
+  let badgeClass = 'badge-normal';
+  let badgeText = '✅ Normal';
+  let findings = [];
+  let insight = 'Overall healthy results.';
+  
+  if (type === 'blood') {
+    name = 'Hemoglobin & CBC Test';
+    badgeClass = 'badge-attention';
+    badgeText = '⚠️ Attention';
+    findings = [
+      { label: 'Hemoglobin', val: '13.8 g/dL ✓', cls: 'ok' },
+      { label: 'WBC Count', val: '8.5 x10^3 ✓', cls: 'ok' },
+      { label: 'Platelets', val: '240k ✓', cls: 'ok' }
+    ];
+    insight = 'CBC metrics look optimal. Maintain high-protein diet.';
+  } else if (type === 'glucose') {
+    name = 'Fasting Blood Sugar';
+    badgeClass = 'badge-attention';
+    badgeText = '⚠️ Attention';
+    findings = [
+      { label: 'Fasting Sugar', val: '118 mg/dL ↑', cls: 'warn' },
+      { label: 'Post-Meal Sugar', val: '155 mg/dL ↑', cls: 'warn' }
+    ];
+    insight = 'Glucose slightly elevated. Avoid sugary foods and increase active walking.';
+  } else if (type === 'bp') {
+    name = 'Blood Pressure Log';
+    badgeClass = 'badge-critical';
+    badgeText = '🚨 Critical';
+    findings = [
+      { label: 'Systolic BP', val: '150 mmHg ↑↑', cls: 'bad' },
+      { label: 'Diastolic BP', val: '92 mmHg ↑', cls: 'bad' }
+    ];
+    insight = 'Hypertension Stage 2. Limit sodium intake immediately and monitor daily.';
+  } else {
+    name = 'Lipid Profile Report';
+    findings = [
+      { label: 'Total Cholesterol', val: '225 mg/dL ↑', cls: 'warn' },
+      { label: 'HDL (Good)', val: '42 mg/dL ✓', cls: 'ok' },
+      { label: 'Triglycerides', val: '185 mg/dL ↑', cls: 'warn' }
+    ];
+    insight = 'Cholesterol slightly high. Limit saturated fats (bakery, deep-fried items) and consume omega-3 rich food.';
+  }
+
+  const newReport = {
+    id: reports.length + 1,
+    type: type,
+    name: name,
+    patient: patientId,
+    patientName: p.name,
+    date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+    timeAgo: 'Just now',
+    badgeClass: badgeClass,
+    badgeText: badgeText,
+    findings: findings,
+    insight: insight,
+    file: fileName
+  };
+
+  reports.unshift(newReport);
+  localStorage.setItem('nutriReports', JSON.stringify(reports));
+  
+  showToast(`✅ "${fileName}" analyzed! Added to report database.`);
+  renderReports();
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 2800);
+}
+
+// ===== SETTINGS MODAL =====
+function openSettingsModal() {
+  const key = localStorage.getItem('OPENROUTER_API_KEY') || '';
+  document.getElementById('settingsApiKey').value = key;
+  document.getElementById('settingsModal').classList.add('open');
+}
+function closeSettingsModal(e) {
+  if (e.target === document.getElementById('settingsModal') || e.target.classList.contains('modal-overlay')) {
+    document.getElementById('settingsModal').classList.remove('open');
+  }
+}
+function saveSettings() {
+  const keyVal = document.getElementById('settingsApiKey').value.trim();
+  localStorage.setItem('OPENROUTER_API_KEY', keyVal);
+  document.getElementById('settingsModal').classList.remove('open');
+  showToast('⚙️ Settings saved successfully!');
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const sidebarSettings = document.querySelector('.sidebar-link[onclick*="Settings"]');
+  if (sidebarSettings) {
+    sidebarSettings.removeAttribute('onclick');
+    sidebarSettings.addEventListener('click', openSettingsModal);
+  }
+});
+
+// Sidebar sync
+function syncSidebar() {
+  const activeId = localStorage.getItem('activeProfileId') || 'ali';
+  const activeP = profiles[activeId];
+  if (activeP) {
+    const sideName = document.querySelector('.family-name');
+    if (sideName) sideName.textContent = activeP.name;
+    const sideAvatar = document.querySelector('.family-avatar');
+    const bgColors = ['#15803d','#0ea5e9','#8b5cf6','#f59e0b','#ef4444','#06b6d4','#ec4899','#a855f7'];
+    if (sideAvatar) {
+      sideAvatar.textContent = activeP.avatar;
+      sideAvatar.style.background = bgColors[Object.keys(profiles).indexOf(activeId) % bgColors.length];
+    }
+  }
+}
+
+// Initialize
+populateDropdowns();
+renderReports();
+syncSidebar();
+</script>
+
+<!-- SETTINGS MODAL -->
+<div class="modal-overlay" id="settingsModal" onclick="closeSettingsModal(event)">
+  <div class="modal-box">
+    <div class="modal-header">
+      <span class="modal-title">⚙️ NutriAI Settings</span>
+      <button class="modal-close" onclick="document.getElementById('settingsModal').classList.remove('open')">✕</button>
+    </div>
+    <div class="form-group">
+      <label class="form-label" style="font-size:13px;font-weight:600;display:block;margin-bottom:6px;">OpenRouter API Key</label>
+      <input type="password" class="form-input" id="settingsApiKey" placeholder="sk-or-v1-... type ka key paste karein..." style="width:100%;padding:10px 14px;border:1.5px solid var(--border);border-radius:var(--radius-sm);outline:none;font-size:13px;"/>
+      <div style="font-size:11px;color:var(--text-muted);margin-top:6px;">
+        Apna key <a href="https://openrouter.ai/keys" target="_blank" style="color:var(--primary);font-weight:700;">yahan click karke OpenRouter se free/paid mein haasil karein</a>. Key local storage mein save rahegi.
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:20px;">
+      <button style="flex:1;padding:11px;border-radius:var(--radius-full);border:1.5px solid var(--border);background:white;font-size:14px;font-weight:600;cursor:pointer;" onclick="document.getElementById('settingsModal').classList.remove('open')">Cancel</button>
+      <button style="flex:2;padding:11px;border-radius:var(--radius-full);background:var(--primary);color:white;border:none;font-size:14px;font-weight:700;cursor:pointer;" onclick="saveSettings()">Save Settings</button>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

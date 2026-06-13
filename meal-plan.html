@@ -1,0 +1,1051 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>NutriAI – Personalized Meal Plans</title>
+  <link rel="stylesheet" href="styles.css"/>
+  <style>
+    body { background: var(--page-bg); overflow: hidden; }
+    .plan-layout { display:flex; flex:1; overflow:hidden; }
+    .filter-panel { width:225px; border-right:1px solid var(--border); padding:18px 14px; overflow-y:auto; flex-shrink:0; background:white; }
+    .filter-section { margin-bottom:18px; }
+    .filter-title { font-size:11px; font-weight:700; color:var(--text-primary); margin-bottom:10px; text-transform:uppercase; letter-spacing:0.5px; }
+    .filter-options { display:flex; flex-direction:column; gap:6px; }
+    .filter-option { display:flex; align-items:center; gap:8px; font-size:13px; color:var(--text-secondary); cursor:pointer; padding:4px 0; }
+    .filter-option input { accent-color:var(--primary); width:14px; height:14px; }
+    .filter-slider { width:100%; accent-color:var(--primary); }
+    .filter-slider-row { display:flex; justify-content:space-between; font-size:11px; color:var(--text-muted); margin-top:4px; }
+    .filter-tag { display:inline-flex; align-items:center; gap:5px; padding:4px 10px; background:var(--primary-xlight); color:var(--primary); border-radius:var(--radius-full); font-size:11px; font-weight:600; margin:2px; cursor:pointer; border:none; transition:all 0.15s; }
+    .filter-tag:hover, .filter-tag.active { background:var(--primary); color:white; }
+    .nutri-tip { background:linear-gradient(135deg,#ecfdf5,#d1fae5); border:1px solid var(--border-green); border-radius:var(--radius-lg); padding:14px; margin-top:16px; }
+    .nutri-tip-header { display:flex; align-items:center; gap:8px; margin-bottom:8px; }
+    .nutri-tip-icon { width:26px; height:26px; background:var(--primary); border-radius:8px; display:flex; align-items:center; justify-content:center; }
+    .nutri-tip-title { font-size:11px; font-weight:700; color:var(--primary); text-transform:uppercase; letter-spacing:0.5px; }
+    .nutri-tip-text { font-size:12px; color:#166534; line-height:1.6; }
+    .plan-content { flex:1; overflow-y:auto; padding:20px 24px; }
+    .plan-header { display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:18px; }
+    .plan-title { font-size:24px; font-weight:900; letter-spacing:-0.5px; }
+    .plan-sub { font-size:13px; color:var(--text-muted); margin-top:3px; }
+    .export-btn { display:flex; align-items:center; gap:8px; padding:8px 18px; background:white; border:1.5px solid var(--border); border-radius:var(--radius-full); font-size:13px; font-weight:600; color:var(--text-primary); cursor:pointer; transition:all 0.2s; }
+    .export-btn:hover { border-color:var(--primary); color:var(--primary); }
+    .day-selector { display:flex; gap:8px; overflow-x:auto; margin-bottom:18px; padding-bottom:4px; }
+    .day-pill { flex-shrink:0; text-align:center; padding:10px 14px; border-radius:var(--radius-lg); border:1.5px solid var(--border); background:white; cursor:pointer; transition:all 0.2s; min-width:70px; }
+    .day-pill:hover { border-color:var(--primary); }
+    .day-pill.active { background:var(--primary); border-color:var(--primary); }
+    .day-pill.active .pill-num, .day-pill.active .pill-name { color:white !important; opacity:1 !important; }
+    .pill-num { font-size:18px; font-weight:900; display:block; color:var(--text-primary); }
+    .pill-name { font-size:10px; font-weight:600; text-transform:uppercase; letter-spacing:0.5px; color:var(--text-muted); }
+    .meals-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+    .meal-card { background:white; border:1px solid var(--border); border-radius:var(--radius-lg); overflow:hidden; transition:all 0.25s; }
+    .meal-card:hover { transform:translateY(-3px); box-shadow:var(--shadow-lg); }
+    .meal-img-wrap { position:relative; height:130px; overflow:hidden; cursor:pointer; }
+    .meal-img { width:100%; height:100%; object-fit:cover; transition:transform 0.3s; }
+    .meal-card:hover .meal-img { transform:scale(1.04); }
+    .meal-type-tag { position:absolute; top:10px; left:10px; padding:3px 10px; border-radius:var(--radius-full); font-size:10px; font-weight:700; color:white; text-transform:uppercase; }
+    .tag-B { background:#f59e0b; }
+    .tag-L { background:#10b981; }
+    .tag-D { background:#8b5cf6; }
+    .tag-S { background:#06b6d4; }
+    .meal-body { padding:14px; }
+    .meal-name { font-size:14px; font-weight:800; margin-bottom:3px; }
+    .meal-meta-row { display:flex; gap:10px; margin-bottom:10px; font-size:11px; color:var(--text-muted); }
+    .meal-stat-row { display:flex; gap:6px; margin-bottom:12px; flex-wrap:wrap; }
+    .meal-stat { padding:3px 8px; border-radius:var(--radius-sm); font-size:11px; font-weight:600; }
+    .s-cal { background:var(--primary-xlight); color:var(--primary); }
+    .s-pro { background:#eff6ff; color:#2563eb; }
+    .s-fib { background:#fef3c7; color:#d97706; }
+    .s-dif { border:1px solid var(--border); color:var(--text-secondary); }
+    .recipe-btn { display:flex; align-items:center; justify-content:center; gap:6px; width:100%; padding:8px; background:var(--primary); color:white; border:none; border-radius:var(--radius-sm); font-size:13px; font-weight:600; cursor:pointer; transition:all 0.2s; }
+    .recipe-btn:hover { background:var(--primary-hover); }
+    /* MODAL */
+    .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:1000; display:none; align-items:center; justify-content:center; padding:20px; }
+    .modal-overlay.open { display:flex; }
+    .recipe-modal { background:white; border-radius:24px; max-width:560px; width:100%; max-height:85vh; overflow-y:auto; box-shadow:0 20px 60px rgba(0,0,0,0.25); animation:modalPop 0.25s ease; }
+    @keyframes modalPop { from{transform:scale(0.93);opacity:0;} to{transform:scale(1);opacity:1;} }
+    .recipe-img { width:100%; height:180px; object-fit:cover; display:block; }
+    .recipe-body { padding:24px; }
+    .recipe-title { font-size:20px; font-weight:900; margin-bottom:4px; }
+    .recipe-meta { display:flex; gap:16px; margin-bottom:16px; }
+    .recipe-meta-item { display:flex; align-items:center; gap:5px; font-size:12px; color:var(--text-muted); }
+    .recipe-stats { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-bottom:18px; }
+    .recipe-stat { text-align:center; padding:10px; background:var(--page-bg); border-radius:10px; }
+    .recipe-stat-val { font-size:16px; font-weight:900; color:var(--primary); }
+    .recipe-stat-label { font-size:10px; color:var(--text-muted); text-transform:uppercase; margin-top:2px; }
+    .recipe-section-title { font-size:14px; font-weight:800; margin-bottom:10px; }
+    .ingredient-list { display:flex; flex-direction:column; gap:6px; margin-bottom:16px; }
+    .ingredient-item { display:flex; align-items:center; gap:10px; font-size:13px; color:var(--text-secondary); padding:6px 10px; background:var(--page-bg); border-radius:var(--radius-sm); }
+    .ingredient-item::before { content:'✓'; color:var(--primary); font-weight:700; flex-shrink:0; }
+    .step-list { display:flex; flex-direction:column; gap:10px; margin-bottom:16px; }
+    .step-item { display:flex; gap:12px; align-items:flex-start; }
+    .step-num { width:24px; height:24px; border-radius:50%; background:var(--primary); color:white; font-size:12px; font-weight:700; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+    .step-text { font-size:13px; color:var(--text-secondary); line-height:1.5; }
+    .modal-close-btn { position:absolute; top:14px; right:14px; width:32px; height:32px; border-radius:50%; background:rgba(0,0,0,0.5); border:none; color:white; font-size:18px; cursor:pointer; display:flex; align-items:center; justify-content:center; }
+    .recipe-img-wrap { position:relative; }
+    .toast { position:fixed; bottom:24px; right:24px; background:#1e293b; color:white; padding:12px 20px; border-radius:12px; font-size:13px; font-weight:600; z-index:9999; opacity:0; transform:translateY(10px); transition:all 0.3s; pointer-events:none; }
+    .toast.show { opacity:1; transform:translateY(0); }
+    .modal-box { background:white; border-radius:24px; padding:28px; max-width:440px; width:90%; box-shadow:0 20px 60px rgba(0,0,0,0.2); animation:modalPop 0.25s ease; }
+  </style>
+</head>
+<body>
+<div class="app-layout">
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="sidebar-logo-icon"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M12 2C8.5 2 6 5 6 8c0 2.5 1.5 4.5 3.5 5.5L8 20h8l-1.5-6.5C16.5 12.5 18 10.5 18 8c0-3-2.5-6-6-6z" fill="white"/></svg></div>
+      <span class="sidebar-logo-text">NutriAI</span>
+    </div>
+    <div class="family-card">
+      <div class="family-avatar">FA</div>
+      <div class="family-name">Family Health</div>
+      <div class="family-sub">Managing 4 Profiles</div>
+    </div>
+    <nav class="sidebar-nav">
+      <a href="dashboard.html" class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>Dashboard</a>
+      <a href="meal-plan.html" class="nav-item active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8h1a4 4 0 010 8h-1"/><path d="M2 8h16v9a4 4 0 01-4 4H6a4 4 0 01-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg>Meal Plan</a>
+      <a href="family-profiles.html" class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>Family Profiles</a>
+      <a href="health-reports.html" class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>Health Reports</a>
+      <a href="nutri-ai.html" class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2C8.5 2 6 5 6 8c0 2.5 1.5 4.5 3.5 5.5L8 20h8l-1.5-6.5C16.5 12.5 18 10.5 18 8c0-3-2.5-6-6-6z"/></svg>NutriAI</a>
+    </nav>
+    <div class="sidebar-bottom">
+      <button class="upgrade-btn" onclick="showToast('⭐ Pro = unlimited meal plans!')">⚡ Upgrade to Pro</button>
+      <div class="sidebar-link" onclick="openSettingsModal()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93l-1.41 1.41M4.93 4.93l1.41 1.41M12 2v2M12 20v2M19.07 19.07l-1.41-1.41M4.93 19.07l1.41-1.41M22 12h-2M4 12H2"/></svg>Settings</div>
+      <div class="sidebar-link" onclick="window.location='nutri-ai.html'"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>Support</div>
+    </div>
+  </aside>
+
+  <div class="main-content">
+    <header class="app-header">
+      <div class="header-logo-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M18 8h1a4 4 0 010 8h-1" stroke="white" stroke-width="2"/><path d="M2 8h16v9a4 4 0 01-4 4H6a4 4 0 01-4-4V8z" stroke="white" stroke-width="2"/></svg></div>
+      <span class="header-brand">NutriAI</span>
+      <div class="header-divider"></div>
+      <span class="header-title">Personalized Meal Plans</span>
+      <div class="header-spacer"></div>
+      <div class="header-nav">
+        <button class="header-nav-btn" id="ramadanBtn" onclick="toggleRamadan(this)">🌙 Ramadan Mode</button>
+      </div>
+      <div class="header-actions">
+        <button class="icon-btn" onclick="showToast('🔔 No new notifications')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg></button>
+        <div class="user-chip" onclick="window.location='family-profiles.html'"><div class="user-avatar">AK</div>Ali Khan</div>
+      </div>
+    </header>
+
+    <div class="plan-layout">
+      <!-- FILTER PANEL -->
+      <div class="filter-panel">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+          <span style="font-size:13px;font-weight:700;">Refine Plan</span>
+        </div>
+        <div class="filter-section">
+          <div class="filter-title">Budget Range</div>
+          <div class="filter-options">
+            <label class="filter-option"><input type="radio" name="budget" value="a" onchange="applyFilter()"/> Affordable</label>
+            <label class="filter-option"><input type="radio" name="budget" value="m" checked onchange="applyFilter()"/> Moderate</label>
+            <label class="filter-option"><input type="radio" name="budget" value="p" onchange="applyFilter()"/> Premium</label>
+          </div>
+        </div>
+        <div class="filter-section">
+          <div class="filter-title">Cooking Time: <span id="timeVal">45m</span></div>
+          <input type="range" class="filter-slider" min="5" max="90" value="45" oninput="document.getElementById('timeVal').textContent=this.value+'m';applyFilter()"/>
+          <div class="filter-slider-row"><span>5m</span><span>90m</span></div>
+        </div>
+        <div class="filter-section">
+          <div class="filter-title">Meal Type</div>
+          <div style="display:flex;flex-wrap:wrap;gap:4px;">
+            <button class="filter-tag active" onclick="toggleTag(this,'Breakfast')">Breakfast</button>
+            <button class="filter-tag active" onclick="toggleTag(this,'Lunch')">Lunch</button>
+            <button class="filter-tag active" onclick="toggleTag(this,'Dinner')">Dinner</button>
+            <button class="filter-tag active" onclick="toggleTag(this,'Snack')">Snack</button>
+          </div>
+        </div>
+        <div class="filter-section">
+          <div class="filter-title">Dietary Tags</div>
+          <div style="display:flex;flex-wrap:wrap;gap:4px;">
+            <button class="filter-tag" onclick="toggleTag(this,'Gluten-Free')">Gluten-Free</button>
+            <button class="filter-tag" onclick="toggleTag(this,'Dairy-Free')">Dairy-Free</button>
+            <button class="filter-tag" onclick="toggleTag(this,'High Protein')">High Protein</button>
+            <button class="filter-tag" onclick="toggleTag(this,'Low Carb')">Low Carb</button>
+          </div>
+        </div>
+        <div class="nutri-tip">
+          <div class="nutri-tip-header">
+            <div class="nutri-tip-icon"><svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M12 2C8.5 2 6 5 6 8c0 2.5 1.5 4.5 3.5 5.5L8 20h8l-1.5-6.5C16.5 12.5 18 10.5 18 8c0-3-2.5-6-6-6z" fill="white"/></svg></div>
+            <span class="nutri-tip-title">NutriAI's Tip</span>
+          </div>
+          <p id="nutri-tip-text" class="nutri-tip-text">Drinking warm water with lemon 30 minutes before breakfast can help improve digestion and blood sugar control.</p>
+        </div>
+      </div>
+
+      <!-- PLAN CONTENT -->
+      <div class="plan-content">
+        <div class="plan-header">
+          <div>
+            <h1 class="plan-title">Weekly Meal Plan</h1>
+            <p class="plan-sub" id="planSubTitle">Customized for Ali Khan • Moderate budget • Diabetes-safe</p>
+          </div>
+          <button class="export-btn" onclick="exportPDF()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Export to PDF
+          </button>
+        </div>
+
+        <!-- DAY SELECTOR -->
+        <div class="day-selector" id="daySelectorRow"></div>
+
+        <!-- MEALS GRID -->
+        <div class="meals-grid" id="mealsGrid"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- RECIPE MODAL -->
+<div class="modal-overlay" id="recipeModal" onclick="closeRecipeModal(event)">
+  <div class="recipe-modal" id="recipeModalBox">
+    <div class="recipe-img-wrap">
+      <img id="recipeImg" class="recipe-img" src="" alt=""/>
+      <button class="modal-close-btn" onclick="document.getElementById('recipeModal').classList.remove('open')">✕</button>
+    </div>
+    <div class="recipe-body">
+      <div class="recipe-title" id="recipeTitle"></div>
+      <div class="recipe-meta" id="recipeMeta"></div>
+      <div class="recipe-stats" id="recipeStats"></div>
+      <div class="recipe-section-title">🛒 Ingredients</div>
+      <div class="ingredient-list" id="recipeIngredients"></div>
+      <div class="recipe-section-title">👨‍🍳 Steps</div>
+      <div class="step-list" id="recipeSteps"></div>
+      <button style="width:100%;padding:12px;background:var(--primary);color:white;border:none;border-radius:var(--radius-full);font-size:14px;font-weight:700;cursor:pointer;margin-top:8px;" onclick="addToMealPlan()">✅ Add to Today's Plan</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ===== SHARED DATABASE HELPERS =====
+function initNutriDatabase() {
+  const defaultProfiles = {
+    ali: {
+      id: 'ali',
+      name: 'Ali Khan',
+      welcome: 'As-salamu Alaykum, Ali 👋',
+      avatar: 'AK',
+      age: 34,
+      gender: 'Male',
+      relation: 'Head of Family',
+      condition: 'healthy',
+      condText: '✅ Healthy',
+      condClass: 'cond-healthy',
+      weight: 82.3,
+      height: 178,
+      calories: 840,
+      total: 1840,
+      prot: 45,
+      protT: 120,
+      carb: 110,
+      carbT: 290,
+      fat: 28,
+      fatT: 65,
+      glasses: 3,
+      waterGoal: 3,
+      statusLabel: 'Daily Cal',
+      statusVal: '1,840'
+    },
+    zoya: {
+      id: 'zoya',
+      name: 'Zoya Khan',
+      welcome: 'Good Morning, Zoya! 😊',
+      avatar: 'ZK',
+      age: 30,
+      gender: 'Female',
+      relation: 'Spouse',
+      condition: 'healthy',
+      condText: '✅ Healthy',
+      condClass: 'cond-healthy',
+      weight: 62.1,
+      height: 162,
+      calories: 620,
+      total: 1600,
+      prot: 55,
+      protT: 100,
+      carb: 80,
+      carbT: 220,
+      fat: 22,
+      fatT: 55,
+      glasses: 5,
+      waterGoal: 2.5,
+      statusLabel: 'Daily Cal',
+      statusVal: '1,600'
+    },
+    ahmed: {
+      id: 'ahmed',
+      name: 'Ahmed Khan',
+      welcome: 'As-salamu Alaykum, Ahmed 👋',
+      avatar: 'AK',
+      age: 62,
+      gender: 'Male',
+      relation: 'Father',
+      condition: 'diabetes',
+      condText: '🩺 Diabetes Control',
+      condClass: 'cond-diabetes',
+      weight: 78.4,
+      height: 170,
+      calories: 1050,
+      total: 1840,
+      prot: 70,
+      protT: 120,
+      carb: 140,
+      carbT: 290,
+      fat: 35,
+      fatT: 65,
+      glasses: 2,
+      waterGoal: 3,
+      statusLabel: 'Glucose mg/dL',
+      statusVal: '124'
+    },
+    sara: {
+      id: 'sara',
+      name: 'Sara Khan',
+      welcome: 'Good Morning, Sara! 😊',
+      avatar: 'SK',
+      age: 58,
+      gender: 'Female',
+      relation: 'Mother',
+      condition: 'bp',
+      condText: '💙 High BP Watch',
+      condClass: 'cond-bp',
+      weight: 70.2,
+      height: 158,
+      calories: 900,
+      total: 1700,
+      prot: 50,
+      protT: 110,
+      carb: 120,
+      carbT: 250,
+      fat: 30,
+      fatT: 60,
+      glasses: 4,
+      waterGoal: 2.5,
+      statusLabel: 'BP (mmHg)',
+      statusVal: '142/88'
+    }
+  };
+
+  if (!localStorage.getItem('nutriProfiles')) {
+    localStorage.setItem('nutriProfiles', JSON.stringify(defaultProfiles));
+  }
+  if (!localStorage.getItem('activeProfileId')) {
+    localStorage.setItem('activeProfileId', 'ali');
+  }
+}
+
+initNutriDatabase();
+
+let currentProfile = localStorage.getItem('activeProfileId') || 'ali';
+let profiles = JSON.parse(localStorage.getItem('nutriProfiles'));
+if (!profiles || !profiles[currentProfile]) {
+  currentProfile = 'ali';
+  localStorage.setItem('activeProfileId', 'ali');
+}
+const bgColors = ['#15803d','#0ea5e9','#8b5cf6','#f59e0b','#ef4444','#06b6d4','#ec4899','#a855f7'];
+
+// ===== RECIPES DATABASE =====
+const masterMeals = [
+  // === BREAKFASTS ===
+  { name:'Avocado & Poached Egg Toast', type:'Breakfast', img:'https://images.unsplash.com/photo-1525351484163-7529414344d8?w=500&auto=format&fit=crop', cal:340, protein:'18g', fiber:'7g', diff:'Easy', time:10, budget:'p', tags:['Gluten-Free','High Protein'],
+    ingredients:['2 whole wheat bread slices','1 ripe avocado','2 eggs (poached)','Cherry tomatoes','Lemon juice','Salt & pepper'],
+    steps:['Toast the wheat bread slices.','Mash avocado with lemon juice, salt, and pepper.','Poach eggs in boiling water.','Spread avocado on toast, top with eggs.'] },
+  { name:'Anda Paratha & Mint Raita', type:'Breakfast', img:'https://images.unsplash.com/photo-1601050690597-df0568f70950?w=500&auto=format&fit=crop', cal:420, protein:'20g', fiber:'4g', diff:'Easy', time:20, budget:'m', tags:['High Protein'],
+    ingredients:['Whole wheat paratha','2 eggs','Plain yogurt — ½ cup','Pudina (mint)','Salt & pepper'],
+    steps:['Cook wheat paratha on tawa with minimal olive oil.','Scramble eggs and cook.','Make raita with plain yogurt, mint and salt.','Serve paratha with egg and raita.'] },
+  { name:'Steel-Cut Oatmeal with Almonds', type:'Breakfast', img:'https://images.unsplash.com/photo-1505576399279-565b52d4ac71?w=500&auto=format&fit=crop', cal:310, protein:'12g', fiber:'8g', diff:'Easy', time:15, budget:'a', tags:['Low Carb','Gluten-Free'],
+    ingredients:['Steel-cut oats — ½ cup','Water or low-fat milk','10 almonds','Cinnamon powder'],
+    steps:['Boil oats in water/milk for 10 minutes.','Stir until thick.','Top with chopped almonds and a pinch of cinnamon.'] },
+  { name:'Besan Ka Chilla (Gram flour pancake)', type:'Breakfast', img:'https://images.unsplash.com/photo-1601050690597-df0568f70950?w=500&auto=format&fit=crop', cal:280, protein:'14g', fiber:'6g', diff:'Easy', time:15, budget:'a', tags:['Gluten-Free','Low Carb'],
+    ingredients:['Besan (gram flour) — ½ cup','Onion & tomato (chopped)','Green chilies & coriander','Water','Turmeric & salt'],
+    steps:['Mix besan, chopped veggies, spices and water into a smooth batter.','Heat non-stick pan, pour batter.','Cook both sides until golden brown. Serve hot.'] },
+  { name:'Egg Shakshuka (Pakistani style)', type:'Breakfast', img:'https://images.unsplash.com/photo-1590412200988-a436bb7050a8?w=500&auto=format&fit=crop', cal:320, protein:'18g', fiber:'5g', diff:'Medium', time:20, budget:'m', tags:['High Protein','Low Carb'],
+    ingredients:['2 eggs','1 tomato (chopped)','½ onion (chopped)','Cumin & red chili powder','Olive oil — 1 tsp'],
+    steps:['Sauté onions and tomatoes in olive oil with spices.','Create wells in the sauce, crack eggs in.','Cover and cook on low heat for 8 minutes until whites set.'] },
+  { name:'Chia Seed Pudding with Berries', type:'Breakfast', img:'https://images.unsplash.com/photo-1505576399279-565b52d4ac71?w=500&auto=format&fit=crop', cal:250, protein:'8g', fiber:'11g', diff:'Easy', time:5, budget:'p', tags:['Gluten-Free','Dairy-Free','Low Carb'],
+    ingredients:['Chia seeds — 3 tbsp','Almond milk — 1 cup','Mixed berries — ½ cup','Stevia — 1 pinch'],
+    steps:['Mix chia seeds, almond milk, and stevia in a jar.','Refrigerate overnight.','Top with fresh berries. Serve chilled.'] },
+  { name:'Pakistani Style Oats Upma', type:'Breakfast', img:'https://images.unsplash.com/photo-1505576399279-565b52d4ac71?w=500&auto=format&fit=crop', cal:290, protein:'10g', fiber:'6g', diff:'Easy', time:15, budget:'a', tags:['Gluten-Free'],
+    ingredients:['Rolled oats — 1 cup','Onion, mustard seeds & curry leaves','Chopped carrots & peas','1 tsp oil'],
+    steps:['Dry roast oats for 5 minutes.','Sauté mustard seeds, curry leaves, onions, and veggies in oil.','Add oats and water, cook until soft.'] },
+  { name:'Desi Masala Egg Bhurji', type:'Breakfast', img:'https://images.unsplash.com/photo-1601050690597-df0568f70950?w=500&auto=format&fit=crop', cal:260, protein:'16g', fiber:'2g', diff:'Easy', time:10, budget:'a', tags:['High Protein','Low Carb'],
+    ingredients:['3 eggs','½ onion (chopped)','1 tomato (chopped)','Green chilies & fresh coriander','1 tsp oil'],
+    steps:['Sauté onions, green chilies, and tomatoes in oil.','Whisk eggs and pour into the pan.','Stir continuously until eggs are cooked and scrambled.','Garnish with fresh coriander and black pepper.'] },
+  { name:'Spinach & Feta Egg Scramble', type:'Breakfast', img:'https://images.unsplash.com/photo-1598103442097-8b74394b95c1?w=500&auto=format&fit=crop', cal:240, protein:'18g', fiber:'3g', diff:'Easy', time:12, budget:'m', tags:['High Protein','Low Carb'],
+    ingredients:['2 eggs','1 cup spinach leaves','30g feta cheese','1 tsp olive oil','Black pepper'],
+    steps:['Heat olive oil and cook spinach until wilted.','Whisk eggs and add to pan.','Stir gently, adding crumbled feta cheese.','Cook until set and season with pepper.'] },
+  { name:'Banana Walnut Steel-Cut Oats', type:'Breakfast', img:'https://images.unsplash.com/photo-1505576399279-565b52d4ac71?w=500&auto=format&fit=crop', cal:330, protein:'10g', fiber:'7g', diff:'Easy', time:15, budget:'m', tags:['Gluten-Free'],
+    ingredients:['Steel-cut oats — ½ cup','½ banana (sliced)','8 walnuts','1 cup low-fat milk','Cinnamon'],
+    steps:['Cook oats in milk and water until soft.','Top with sliced banana and crushed walnuts.','Sprinkle cinnamon before serving.'] },
+  { name:'Strawberry Oats Parfait', type:'Breakfast', img:'https://images.unsplash.com/photo-1505576399279-565b52d4ac71?w=500&auto=format&fit=crop', cal:280, protein:'12g', fiber:'6g', diff:'Easy', time:5, budget:'p', tags:['Gluten-Free'],
+    ingredients:['Rolled oats — ½ cup','Greek yogurt — ½ cup','Fresh strawberries — ½ cup','1 tsp honey'],
+    steps:['Layer roasted oats, yogurt, and sliced strawberries in a glass.','Drizzle honey on top.','Serve chilled.'] },
+  { name:'Moong Daal Chilla', type:'Breakfast', img:'https://images.unsplash.com/photo-1601050690597-df0568f70950?w=500&auto=format&fit=crop', cal:270, protein:'15g', fiber:'6g', diff:'Easy', time:20, budget:'a', tags:['Gluten-Free','High Protein'],
+    ingredients:['Yellow Moong Daal (soaked) — ½ cup','Ginger & green chilies','Turmeric, salt & cumin','1 tsp oil'],
+    steps:['Blend soaked lentils with ginger and green chilies into a paste.','Add spices and adjust water for batter consistency.','Pour batter onto tawa and cook both sides with oil.','Serve with mint chutney.'] },
+  { name:'Cinnamon Raisin Oatmeal', type:'Breakfast', img:'https://images.unsplash.com/photo-1505576399279-565b52d4ac71?w=500&auto=format&fit=crop', cal:310, protein:'9g', fiber:'7g', diff:'Easy', time:12, budget:'a', tags:['Gluten-Free'],
+    ingredients:['Rolled oats — ½ cup','Low-fat milk — 1 cup','Raisins — 1 tbsp','Cinnamon powder — ½ tsp','Honey — 1 tsp'],
+    steps:['Boil oats in milk until soft.','Stir in cinnamon and raisins.','Drizzle honey before serving.'] },
+  { name:'Cardamom & Chia Seed Oats', type:'Breakfast', img:'https://images.unsplash.com/photo-1505576399279-565b52d4ac71?w=500&auto=format&fit=crop', cal:290, protein:'11g', fiber:'8g', diff:'Easy', time:10, budget:'m', tags:['Gluten-Free'],
+    ingredients:['Oats — ½ cup','Almond milk — 1 cup','Chia seeds — 1 tbsp','Green cardamom powder — ¼ tsp','Stevia — 1 pinch'],
+    steps:['Cook oats with almond milk and cardamom.','Stir in chia seeds and stevia.','Let sit for 3 minutes to thicken.'] },
+  { name:'Apple Walnut Oatmeal', type:'Breakfast', img:'https://images.unsplash.com/photo-1505576399279-565b52d4ac71?w=500&auto=format&fit=crop', cal:340, protein:'10g', fiber:'8g', diff:'Easy', time:15, budget:'m', tags:['Gluten-Free'],
+    ingredients:['Rolled oats — ½ cup','Water — 1 cup','1 small apple (diced)','Walnuts (chopped) — 6','Honey — 1 tsp'],
+    steps:['Simmer oats and diced apples in water until soft.','Top with chopped walnuts and cinnamon.','Drizzle honey.'] },
+  { name:'Dates & Almond Oatmeal', type:'Breakfast', img:'https://images.unsplash.com/photo-1505576399279-565b52d4ac71?w=500&auto=format&fit=crop', cal:350, protein:'12g', fiber:'8g', diff:'Easy', time:15, budget:'a', tags:['Gluten-Free'],
+    ingredients:['Oats — ½ cup','Low-fat milk — 1 cup','Dates (chopped) — 2','Almonds (crushed) — 8'],
+    steps:['Cook oats in milk.','Stir in chopped dates for natural sweetness.','Top with crushed almonds.'] },
+  { name:'Honey Almond Dalia Bowl', type:'Breakfast', img:'https://images.unsplash.com/photo-1505576399279-565b52d4ac71?w=500&auto=format&fit=crop', cal:320, protein:'11g', fiber:'9g', diff:'Easy', time:20, budget:'a', tags:[],
+    ingredients:['Broken wheat (dalia) — ½ cup','Milk — 1 cup','Almonds (sliced) — 8','Honey — 1 tsp'],
+    steps:['Roast dalia, then boil in water/milk until tender.','Sweeten with honey.','Garnish with sliced almonds.'] },
+  { name:'Coconut Mango Oats', type:'Breakfast', img:'https://images.unsplash.com/photo-1505576399279-565b52d4ac71?w=500&auto=format&fit=crop', cal:330, protein:'9g', fiber:'7g', diff:'Easy', time:10, budget:'p', tags:['Gluten-Free','Dairy-Free'],
+    ingredients:['Oats — ½ cup','Light coconut milk — 1 cup','Fresh mango (diced) — ¼ cup','Shredded coconut — 1 tsp'],
+    steps:['Cook oats in coconut milk.','Top with fresh diced mangoes.','Sprinkle shredded coconut.'] },
+  { name:'Spiced Pumpkin Oats', type:'Breakfast', img:'https://images.unsplash.com/photo-1505576399279-565b52d4ac71?w=500&auto=format&fit=crop', cal:290, protein:'10g', fiber:'8g', diff:'Easy', time:15, budget:'m', tags:['Gluten-Free'],
+    ingredients:['Rolled oats — ½ cup','Pumpkin purée — 3 tbsp','Milk — 1 cup','Ginger & nutmeg — 1 pinch','Pecans — 5'],
+    steps:['Cook oats, pumpkin purée, and spices in milk.','Top with pecans and serve warm.'] },
+  { name:'Berry Chia Oatmeal', type:'Breakfast', img:'https://images.unsplash.com/photo-1505576399279-565b52d4ac71?w=500&auto=format&fit=crop', cal:280, protein:'11g', fiber:'9g', diff:'Easy', time:12, budget:'p', tags:['Gluten-Free'],
+    ingredients:['Oats — ½ cup','Almond milk — 1 cup','Mixed berries — ½ cup','Chia seeds — 1 tbsp'],
+    steps:['Cook oats in almond milk.','Stir in fresh berries and chia seeds.','Serve hot.'] },
+  { name:'Savory Oats Khichdi', type:'Breakfast', img:'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=500&auto=format&fit=crop', cal:270, protein:'12g', fiber:'8g', diff:'Easy', time:18, budget:'a', tags:['Gluten-Free'],
+    ingredients:['Oats — 1 cup','Yellow Moong Daal — 2 tbsp','Carrots & peas','Cumin & turmeric','1 tsp oil'],
+    steps:['Sauté cumin and vegetables in oil.','Add roasted oats, lentils, spices, and water.','Simmer until lentils are cooked and mushy.'] },
+  { name:'Barley Dalia Bowl', type:'Breakfast', img:'https://images.unsplash.com/photo-1505576399279-565b52d4ac71?w=500&auto=format&fit=crop', cal:300, protein:'11g', fiber:'10g', diff:'Medium', time:25, budget:'a', tags:[],
+    ingredients:['Barley dalia — ½ cup','Skimmed milk — 1 cup','Flaxseeds — 1 tsp','Walnut halves — 4'],
+    steps:['Pressure cook barley dalia in water.','Stir in milk, top with flaxseeds and walnuts.'] },
+  { name:'Mushroom Egg White Omelette', type:'Breakfast', img:'https://images.unsplash.com/photo-1598103442097-8b74394b95c1?w=500&auto=format&fit=crop', cal:210, protein:'22g', fiber:'2g', diff:'Easy', time:12, budget:'m', tags:['High Protein','Low Carb','Dairy-Free'],
+    ingredients:['4 egg whites','Sliced mushrooms — ½ cup','Chopped onions & oregano','1 tsp olive oil'],
+    steps:['Sauté mushrooms and onions in olive oil.','Pour whisked egg whites on top.','Cook until edges lift, flip and cook through.'] },
+  { name:'Cheese & Spinach Frittata', type:'Breakfast', img:'https://images.unsplash.com/photo-1598103442097-8b74394b95c1?w=500&auto=format&fit=crop', cal:290, protein:'20g', fiber:'3g', diff:'Medium', time:25, budget:'m', tags:['High Protein','Low Carb'],
+    ingredients:['3 eggs','1 cup chopped spinach','Cheddar cheese (grated) — 30g','1 tsp butter','Garlic powder'],
+    steps:['Whisk eggs with garlic powder.','Cook spinach in butter, pour in eggs and top with cheese.','Bake or cook covered until firm.'] },
+  { name:'Besan & Palak Chilla', type:'Breakfast', img:'https://images.unsplash.com/photo-1601050690597-df0568f70950?w=500&auto=format&fit=crop', cal:270, protein:'13g', fiber:'7g', diff:'Easy', time:15, budget:'a', tags:['Gluten-Free'],
+    ingredients:['Gram flour (besan) — ½ cup','Chopped spinach — ½ cup','Onions & green chilies','Salt & cumin'],
+    steps:['Mix all ingredients with water to make batter.','Ladle onto a hot pan and cook both sides.'] },
+  { name:'Oats Flour Pancake', type:'Breakfast', img:'https://images.unsplash.com/photo-1525351484163-7529414344d8?w=500&auto=format&fit=crop', cal:290, protein:'12g', fiber:'6g', diff:'Easy', time:15, budget:'m', tags:['Gluten-Free'],
+    ingredients:['Oat flour — ½ cup','1 egg','Mashed banana — ½','Low-fat milk','Cinnamon'],
+    steps:['Blend oat flour, egg, mashed banana, and milk.','Pour onto hot griddle and flip when bubbly.'] },
+  { name:'Almond Flour Pancake', type:'Breakfast', img:'https://images.unsplash.com/photo-1525351484163-7529414344d8?w=500&auto=format&fit=crop', cal:320, protein:'16g', fiber:'7g', diff:'Easy', time:12, budget:'p', tags:['Gluten-Free','Low Carb'],
+    ingredients:['Almond flour — ½ cup','2 eggs','1 tsp stevia','Almond milk — 2 tbsp','Vanilla extract'],
+    steps:['Whisk eggs, almond milk, stevia, and vanilla.','Fold in almond flour. Cook pancakes on low heat.'] },
+
+  // === LUNCHES ===
+  { name:'Mediterranean Chickpea Salad', type:'Lunch', img:'https://images.unsplash.com/photo-1540189549336-e6e99c3679fe?w=500&auto=format&fit=crop', cal:480, protein:'22g', fiber:'12g', diff:'Easy', time:15, budget:'m', tags:['High Protein','Dairy-Free'],
+    ingredients:['Chickpeas (boiled) — 1 cup','Cucumber & cherry tomatoes','Calamata olives','Olive oil & lemon juice','Fresh parsley'],
+    steps:['Mix boiled chickpeas, diced cucumbers, tomatoes, and olives.','Drizzle olive oil and squeeze lemon juice.','Garnish with chopped parsley. Toss well.'] },
+  { name:'Masoor Daal Soup & Wheat Roti', type:'Lunch', img:'https://images.unsplash.com/photo-1547592180-85f173990554?w=500&auto=format&fit=crop', cal:390, protein:'20g', fiber:'13g', diff:'Easy', time:25, budget:'a', tags:['High Protein','Dairy-Free'],
+    ingredients:['Masoor daal (red lentils) — ½ cup','Onion, garlic & ginger','Turmeric, cumin & black pepper','Whole wheat roti'],
+    steps:['Boil red lentils with turmeric, salt, and spices until soft.','Mash lentils to soup consistency.','Serve hot with 1 whole wheat roti.'] },
+  { name:'Grilled Chicken Caesar Salad', type:'Lunch', img:'https://images.unsplash.com/photo-1540189549336-e6e99c3679fe?w=500&auto=format&fit=crop', cal:410, protein:'36g', fiber:'4g', diff:'Easy', time:20, budget:'p', tags:['High Protein','Low Carb'],
+    ingredients:['Chicken breast (grilled) — 150g','Romaine lettuce','Parmesan cheese (minimal)','Olive oil & lemon juice dressing'],
+    steps:['Chop fresh romaine lettuce.','Slice grilled chicken breast.','Toss together with olive oil, lemon juice, salt & pepper.'] },
+  { name:'Quinoa Veggie Mix Bowl', type:'Lunch', img:'https://images.unsplash.com/photo-1540189549336-e6e99c3679fe?w=500&auto=format&fit=crop', cal:380, protein:'14g', fiber:'9g', diff:'Medium', time:25, budget:'m', tags:['Gluten-Free','Dairy-Free'],
+    ingredients:['Quinoa — ½ cup (cooked)','Bell peppers, peas & carrots','Garlic & olive oil','Soy sauce (low sodium)'],
+    steps:['Cook quinoa separately.','Sauté bell peppers, carrots and peas in olive oil and garlic.','Mix quinoa in, add low-sodium soy sauce. Serve warm.'] },
+  { name:'Palak Paneer (Diabetic style)', type:'Lunch', img:'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=500&auto=format&fit=crop', cal:340, protein:'18g', fiber:'6g', diff:'Medium', time:30, budget:'m', tags:['Gluten-Free','High Protein'],
+    ingredients:['Spinach (palak) — 200g','Paneer cubes — 100g','Ginger-garlic paste','Spices (garam masala, turmeric)','1 tsp oil'],
+    steps:['Blanch spinach and purée it.','Sauté ginger-garlic paste and spices, add spinach.','Gently fold paneer cubes. Simmer 5 minutes.'] },
+  { name:'Mix Vegetable Sabzi & Roti', type:'Lunch', img:'https://images.unsplash.com/photo-1547592180-85f173990554?w=500&auto=format&fit=crop', cal:320, protein:'10g', fiber:'8g', diff:'Easy', time:25, budget:'a', tags:['Dairy-Free'],
+    ingredients:['Cauliflower, carrots, green beans','Onion & tomato gravy','Spices (coriander, cumin, salt)','Whole wheat roti'],
+    steps:['Sauté onions and tomatoes, add chopped vegetables.','Stir-fry with spices, add splash of water, cover.','Cook 15 minutes on low heat. Serve with roti.'] },
+  { name:'Moong Daal Khichdi (Low GI)', type:'Lunch', img:'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=500&auto=format&fit=crop', cal:350, protein:'12g', fiber:'7g', diff:'Easy', time:20, budget:'a', tags:['Gluten-Free'],
+    ingredients:['Split yellow moong dal — ½ cup','Basmati Rice — ¼ cup','Turmeric, cumin & ginger','Ghee — 1 tsp'],
+    steps:['Wash rice and dal. Sauté cumin and ginger in ghee.','Add rice, dal, salt, turmeric and water.','Pressure cook for 3 whistles until soft.'] },
+  { name:'Spiced Tofu Green Salad', type:'Lunch', img:'https://images.unsplash.com/photo-1540189549336-e6e99c3679fe?w=500&auto=format&fit=crop', cal:330, protein:'18g', fiber:'8g', diff:'Easy', time:15, budget:'m', tags:['Gluten-Free','Dairy-Free','Low Carb'],
+    ingredients:['Firm tofu cubes — 150g','Cucumber, lettuce & spinach','1 tsp olive oil','Cumin & coriander powder'],
+    steps:['Toss tofu in oil and spices, pan-sear until brown.','Toss with salad greens, dressing with lemon juice.'] },
+  { name:'Rainbow Veggie Quinoa Salad', type:'Lunch', img:'https://images.unsplash.com/photo-1540189549336-e6e99c3679fe?w=500&auto=format&fit=crop', cal:360, protein:'13g', fiber:'9g', diff:'Easy', time:18, budget:'m', tags:['Gluten-Free','Dairy-Free'],
+    ingredients:['Quinoa — ½ cup','Red cabbage (shredded)','Yellow bell peppers','Carrot ribbons','Olive oil dressing'],
+    steps:['Boil quinoa.','Chop all raw veggies into thin ribbons.','Toss quinoa and veggies in lemon-herb olive oil.'] },
+  { name:'Sprouted Moong Salad', type:'Lunch', img:'https://images.unsplash.com/photo-1540189549336-e6e99c3679fe?w=500&auto=format&fit=crop', cal:290, protein:'16g', fiber:'10g', diff:'Easy', time:10, budget:'a', tags:['Gluten-Free','Dairy-Free','High Protein'],
+    ingredients:['Sprouted moong dal — 1 cup','1 chopped tomato','1 chopped cucumber','Green chilies & chat masala','Lemon juice'],
+    steps:['Wash sprouts thoroughly.','Mix sprouts with chopped cucumber, tomato, green chilies.','Drizzle lemon juice and sprinkle chat masala.'] },
+  { name:'Chickpea & Avocado Bowl', type:'Lunch', img:'https://images.unsplash.com/photo-1540189549336-e6e99c3679fe?w=500&auto=format&fit=crop', cal:420, protein:'15g', fiber:'12g', diff:'Easy', time:12, budget:'m', tags:['Gluten-Free','Dairy-Free'],
+    ingredients:['Boiled chickpeas — 1 cup','½ ripe avocado','Cherry tomatoes','Onion slices','Lemon juice & cumin'],
+    steps:['Place chickpeas and chopped avocado in a bowl.','Add tomatoes and onions.','Dress with fresh lemon juice, salt, and cumin.'] },
+  { name:'Tandoori Chicken Tikka Salad', type:'Lunch', img:'https://images.unsplash.com/photo-1540189549336-e6e99c3679fe?w=500&auto=format&fit=crop', cal:380, protein:'38g', fiber:'5g', diff:'Easy', time:20, budget:'m', tags:['High Protein','Low Carb'],
+    ingredients:['Chicken breast (tandoori marinated) — 150g','Cucumber, tomato & lettuce','Yogurt mint dressing — 2 tbsp'],
+    steps:['Pan-grill tandoori chicken. Slice into strips.','Toss greens together.','Top with chicken and drizzle yogurt dressing.'] },
+  { name:'Kidney Bean & Sweetcorn Salad', type:'Lunch', img:'https://images.unsplash.com/photo-1540189549336-e6e99c3679fe?w=500&auto=format&fit=crop', cal:340, protein:'14g', fiber:'9g', diff:'Easy', time:10, budget:'a', tags:['Gluten-Free','Dairy-Free'],
+    ingredients:['Boiled red kidney beans (Lobia) — 1 cup','Sweetcorn kernels — ½ cup','Onions & green coriander','1 tsp olive oil','Lemon juice'],
+    steps:['Toss kidney beans and corn in olive oil.','Add chopped onions, coriander, salt, and pepper.','Finish with lemon juice.'] },
+  { name:'Barley Salad with Mint Dressing', type:'Lunch', img:'https://images.unsplash.com/photo-1540189549336-e6e99c3679fe?w=500&auto=format&fit=crop', cal:360, protein:'10g', fiber:'11g', diff:'Medium', time:25, budget:'a', tags:['Dairy-Free'],
+    ingredients:['Pearl barley (cooked) — 1 cup','Chopped mint leaves','Bell peppers & cucumber','Olive oil — 1 tsp'],
+    steps:['Cook barley until tender. Let cool.','Toss with chopped bell peppers and cucumber.','Blend mint, lemon juice, and olive oil, toss into salad.'] },
+  { name:'Beetroot & Feta Salad', type:'Lunch', img:'https://images.unsplash.com/photo-1540189549336-e6e99c3679fe?w=500&auto=format&fit=crop', cal:310, protein:'9g', fiber:'6g', diff:'Easy', time:15, budget:'m', tags:['Gluten-Free','Low Carb'],
+    ingredients:['Boiled beetroot (diced) — 1 cup','Crumbled feta cheese — 40g','Walnuts — 4','Arugula or spinach leaves'],
+    steps:['Arrange beetroot on greens.','Top with crumbled feta and toasted walnuts.','Dress with balsamic vinegar.'] },
+  { name:'Moong Daal Palak Curry', type:'Lunch', img:'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=500&auto=format&fit=crop', cal:330, protein:'17g', fiber:'9g', diff:'Easy', time:25, budget:'a', tags:['Gluten-Free','High Protein'],
+    ingredients:['Split yellow moong dal — ½ cup','Spinach (palak) — 2 cups','1 tomato & garlic cloves','Cumin, turmeric & garam masala'],
+    steps:['Pressure cook lentil with turmeric and salt.','Sauté garlic and tomato in a pan, add chopped spinach.','Pour in cooked dal, simmer for 10 minutes.'] },
+  { name:'Chana Masala (Low Oil)', type:'Lunch', img:'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=500&auto=format&fit=crop', cal:350, protein:'15g', fiber:'10g', diff:'Easy', time:30, budget:'a', tags:['Gluten-Free','Dairy-Free'],
+    ingredients:['White chickpeas (boiled) — 1 cup','Onion-tomato gravy','Ginger-garlic paste','Garam masala & chana masala','1 tsp oil'],
+    steps:['Sauté ginger-garlic paste and onions in oil.','Add tomatoes, spices and cook until soft.','Add boiled chickpeas with water, simmer on medium heat.'] },
+  { name:'Black Masoor Daal & Cucumber Raita', type:'Lunch', img:'https://images.unsplash.com/photo-1547592180-85f173990554?w=500&auto=format&fit=crop', cal:380, protein:'19g', fiber:'11g', diff:'Easy', time:25, budget:'a', tags:['High Protein'],
+    ingredients:['Whole black lentils — ½ cup','Garlic tarka — 1 tsp oil','Plain yogurt — ½ cup','Grated cucumber','Spices'],
+    steps:['Boil black lentils until tender. Temper with sautéed garlic.','Prepare raita by mixing yogurt, cucumber, and roasted cumin.','Serve together hot.'] },
+  { name:'Lobia (Black-Eyed Peas) Curry', type:'Lunch', img:'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=500&auto=format&fit=crop', cal:340, protein:'16g', fiber:'9g', diff:'Easy', time:25, budget:'a', tags:['Gluten-Free','Dairy-Free'],
+    ingredients:['Black-eyed peas (boiled) — 1 cup','Tomato puree — 3 tbsp','Garlic & cumin seeds','1 tsp oil'],
+    steps:['Heat oil, temper with garlic and cumin.','Pour in tomato puree and spices, cook 5 minutes.','Add black-eyed peas, simmer until curry thickens.'] },
+  { name:'Mash Daal (Dry Bhuna Style)', type:'Lunch', img:'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=500&auto=format&fit=crop', cal:370, protein:'18g', fiber:'8g', diff:'Medium', time:30, budget:'a', tags:[],
+    ingredients:['Urad dal (mash) — ½ cup','Julienned ginger','Green chilies & coriander','Cloves & cinnamon tarka'],
+    steps:['Boil dal until 90% tender.','Temper spices and ginger in oil, toss dal in.','Cook on steam (dum) for 8 minutes.'] },
+  { name:'Daal Makhani (Low Fat Version)', type:'Lunch', img:'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=500&auto=format&fit=crop', cal:390, protein:'21g', fiber:'12g', diff:'Medium', time:45, budget:'m', tags:['High Protein'],
+    ingredients:['Whole black urad dal — ½ cup','Kidney beans — 2 tbsp','Low-fat milk — ¼ cup','Tomato paste & spices','1 tsp butter'],
+    steps:['Boil dal and beans together until fully mashed.','Add tomato paste, spices, and milk. Simmer slowly.','Finish with butter.'] },
+  { name:'Rajma (Red Kidney Beans) Masala', type:'Lunch', img:'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=500&auto=format&fit=crop', cal:360, protein:'17g', fiber:'11g', diff:'Easy', time:30, budget:'a', tags:['Gluten-Free','Dairy-Free'],
+    ingredients:['Red kidney beans — 1 cup','Onion, garlic & ginger','Tomato paste & cumin','1 tsp oil'],
+    steps:['Sauté aromatics in oil, add tomato paste and spices.','Stir-fry, then add cooked kidney beans with stock.','Simmer 15 minutes.'] },
+  { name:'Split Chana Daal with Lauki', type:'Lunch', img:'https://images.unsplash.com/photo-1547592180-85f173990554?w=500&auto=format&fit=crop', cal:350, protein:'16g', fiber:'10g', diff:'Easy', time:30, budget:'a', tags:['Gluten-Free','Dairy-Free'],
+    ingredients:['Chana dal — ½ cup','Lauki (bottle gourd) — 1 cup','Onion, tomatoes & turmeric','1 tsp oil'],
+    steps:['Pressure cook chana dal and chopped bottle gourd.','Prepare a light onion-tomato tarka.','Mix together and boil 5 minutes.'] },
+  { name:'Bhindi Masala (Ladyfinger Stir Fry)', type:'Lunch', img:'https://images.unsplash.com/photo-1547592180-85f173990554?w=500&auto=format&fit=crop', cal:240, protein:'5g', fiber:'7g', diff:'Easy', time:20, budget:'a', tags:['Dairy-Free','Low Carb'],
+    ingredients:['Bhindi (okra) sliced — 250g','2 onions (sliced)','Amchoor (dry mango) powder','Spices & green chili','2 tsp oil'],
+    steps:['Sauté okra in oil until stickiness disappears.','Add sliced onions, spices, and amchoor.','Stir-fry until golden brown and tender.'] },
+  { name:'Aloo Palak (Healthy Version)', type:'Lunch', img:'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=500&auto=format&fit=crop', cal:280, protein:'7g', fiber:'8g', diff:'Easy', time:20, budget:'a', tags:['Dairy-Free'],
+    ingredients:['Spinach chopped — 2 cups','1 potato (cubed)','Garlic & cumin','1 tsp oil'],
+    steps:['Parboil potatoes. Sauté garlic and cumin.','Add spinach and cook until wilted.','Stir-fry potatoes with spinach and salt.'] },
+
+  // === DINNERS ===
+  { name:'Omega-3 Baked Salmon & Asparagus', type:'Dinner', img:'https://images.unsplash.com/photo-1467003909585-2f8a72700288?w=500&auto=format&fit=crop', cal:520, protein:'38g', fiber:'5g', diff:'Medium', time:30, budget:'p', tags:['Gluten-Free','High Protein'],
+    ingredients:['Salmon fillet — 180g','1 bunch asparagus','Olive oil — 1 tbsp','Garlic & lemon juice','Salt & black pepper'],
+    steps:['Season salmon with salt, pepper, garlic, and lemon juice.','Place on baking sheet alongside asparagus.','Bake at 200°C for 15 minutes.'] },
+  { name:'Masoor Daal & Brown Rice Bowl', type:'Dinner', img:'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=500&auto=format&fit=crop', cal:460, protein:'22g', fiber:'11g', diff:'Easy', time:35, budget:'a', tags:['High Protein','Dairy-Free'],
+    ingredients:['Masoor daal — ½ cup','Brown Basmati Rice — ½ cup (cooked)','Onion, garlic & cumin','Tomato raita'],
+    steps:['Boil and prepare daal. Cook brown rice.','Tarka of garlic and cumin in 1 tsp olive oil for daal.','Serve daal over brown rice with kachumber.'] },
+  { name:'Lean Chicken Karahi & Roti', type:'Dinner', img:'https://images.unsplash.com/photo-1588166524941-3bf61a9c41db?w=500&auto=format&fit=crop', cal:510, protein:'42g', fiber:'6g', diff:'Medium', time:40, budget:'m', tags:['High Protein'],
+    ingredients:['Chicken breast cubes — 150g','2 tomatoes & ginger strips','Green chilies & coriander','Whole wheat roti','Olive oil — 1 tbsp'],
+    steps:['Cook chicken cubes in olive oil and tomato base.','Add ginger, garlic, and spices, simmer.','Garnish with fresh coriander. Serve with roti.'] },
+  { name:'Grilled Tofu & Cauliflower Rice', type:'Dinner', img:'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=500&auto=format&fit=crop', cal:290, protein:'16g', fiber:'7g', diff:'Easy', time:20, budget:'m', tags:['Gluten-Free','Dairy-Free','Low Carb'],
+    ingredients:['Firm tofu cubes — 150g','Cauliflower (grated into rice)','Sesame oil — 1 tsp','Soy sauce (low sodium)','Broccoli florets'],
+    steps:['Grill seasoned tofu cubes.','Sauté cauliflower rice and broccoli in sesame oil.','Drizzle soy sauce, combine and serve.'] },
+  { name:'Healthy mutton Barley Stew', type:'Dinner', img:'https://images.unsplash.com/photo-1547592180-85f173990554?w=500&auto=format&fit=crop', cal:480, protein:'34g', fiber:'12g', diff:'Hard', time:50, budget:'p', tags:['High Protein'],
+    ingredients:['Mutton pieces (lean) — 120g','Barley (jau) — ⅓ cup','Carrots & celery','Onion & garlic','Herbs'],
+    steps:['Sauté onion, garlic and mutton in stockpot.','Add barley, chopped carrots, and water.','Simmer for 45 minutes until mutton and barley are soft.'] },
+  { name:'Lentil Curry & Quinoa Mix', type:'Dinner', img:'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=500&auto=format&fit=crop', cal:410, protein:'18g', fiber:'10g', diff:'Medium', time:30, budget:'a', tags:['Gluten-Free','Dairy-Free'],
+    ingredients:['Black/brown lentils — ½ cup','Quinoa — ½ cup (cooked)','Tomato paste & ginger','Turmeric, garam masala'],
+    steps:['Simmer lentils with spices until thick.','Serve alongside cooked quinoa. Garnish with lemon juice.'] },
+  { name:'Baked Tandoori Fish Breast', type:'Dinner', img:'https://images.unsplash.com/photo-1467003909585-2f8a72700288?w=500&auto=format&fit=crop', cal:400, protein:'38g', fiber:'4g', diff:'Medium', time:25, budget:'m', tags:['High Protein','Low Carb'],
+    ingredients:['Basa or Cod fillet — 150g','Tandoori masala — 1 tbsp','Yogurt — 2 tbsp','Lemon juice & ginger-garlic paste'],
+    steps:['Marinate fish in yogurt, tandoori masala, lemon juice, ginger-garlic paste.','Place on baking tray and bake at 200°C for 20 minutes.'] },
+  { name:'Baked Lemon Herb Chicken', type:'Dinner', img:'https://images.unsplash.com/photo-1598103442097-8b74394b95c1?w=500&auto=format&fit=crop', cal:450, protein:'40g', fiber:'4g', diff:'Easy', time:30, budget:'m', tags:['High Protein','Low Carb','Gluten-Free'],
+    ingredients:['Chicken breast — 180g','Lemon juice & zest','Olive oil — 1 tbsp','Oregano & garlic powder','Broccoli florets'],
+    steps:['Marinate chicken in olive oil, lemon, and spices.','Place broccoli and chicken breast in baking pan.','Bake at 190°C for 25 minutes.'] },
+  { name:'Pan-Seared Cod in Ginger-Garlic', type:'Dinner', img:'https://images.unsplash.com/photo-1467003909585-2f8a72700288?w=500&auto=format&fit=crop', cal:380, protein:'34g', fiber:'2g', diff:'Easy', time:18, budget:'p', tags:['High Protein','Low Carb','Gluten-Free','Dairy-Free'],
+    ingredients:['Cod fillet — 150g','Ginger-garlic paste','Soy sauce (low sodium)','Olive oil — 1 tsp','Green onions'],
+    steps:['Season fish with ginger-garlic paste and soy sauce.','Sear in olive oil for 4 minutes each side.','Garnish with chopped green onions.'] },
+  { name:'Grilled Tandoori Fish Tikkas', type:'Dinner', img:'https://images.unsplash.com/photo-1467003909585-2f8a72700288?w=500&auto=format&fit=crop', cal:370, protein:'35g', fiber:'3g', diff:'Medium', time:25, budget:'m', tags:['High Protein','Low Carb','Gluten-Free'],
+    ingredients:['Fish cubes (Basa/Cod) — 180g','Yogurt tandoori marinade','Bell pepper & onion skewers'],
+    steps:['Thread marinated fish and veggies on skewers.','Grill in pan or oven for 15 minutes.'] },
+  { name:'Baked Chicken Tikka Skewers', type:'Dinner', img:'https://images.unsplash.com/photo-1598103442097-8b74394b95c1?w=500&auto=format&fit=crop', cal:430, protein:'38g', fiber:'4g', diff:'Medium', time:25, budget:'m', tags:['High Protein','Low Carb'],
+    ingredients:['Chicken breast (cubes) — 150g','Yogurt tikka masala','Onion & capsicum chunks'],
+    steps:['Marinate chicken, thread on wooden skewers with veggies.','Bake at 200°C for 20 minutes, turning once.'] },
+  { name:'Mutton & Vegetable Stew', type:'Dinner', img:'https://images.unsplash.com/photo-1547592180-85f173990554?w=500&auto=format&fit=crop', cal:490, protein:'32g', fiber:'7g', diff:'Hard', time:45, budget:'p', tags:['High Protein'],
+    ingredients:['Lean mutton — 120g','Chopped carrots & turnips','Cabbage & garlic','1 tsp oil'],
+    steps:['Sauté garlic and mutton.','Add vegetables and 3 cups of water.','Simmer on low for 40 minutes.'] },
+  { name:'Baked Salmon & Broccoli', type:'Dinner', img:'https://images.unsplash.com/photo-1467003909585-2f8a72700288?w=500&auto=format&fit=crop', cal:510, protein:'36g', fiber:'6g', diff:'Medium', time:25, budget:'p', tags:['High Protein','Low Carb','Gluten-Free'],
+    ingredients:['Salmon fillet — 150g','Broccoli heads','Olive oil & dill leaves','Lemon'],
+    steps:['Place salmon and broccoli on baking sheet.','Drizzle olive oil, season with salt, pepper, and dill.','Bake at 200°C for 15 minutes.'] },
+  { name:'Tofu Veggie Skewers', type:'Dinner', img:'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=500&auto=format&fit=crop', cal:310, protein:'18g', fiber:'6g', diff:'Easy', time:20, budget:'m', tags:['Gluten-Free','Dairy-Free','Low Carb'],
+    ingredients:['Extra firm tofu — 150g','Bell peppers & mushrooms','Balsamic marinade','Olive oil'],
+    steps:['Thread marinated tofu and veggies.','Sear on a grill pan for 12 minutes.'] },
+  { name:'Chicken Pulao (Brown Rice)', type:'Dinner', img:'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=500&auto=format&fit=crop', cal:480, protein:'32g', fiber:'8g', diff:'Medium', time:35, budget:'m', tags:[],
+    ingredients:['Chicken breast — 100g','Brown Basmati Rice — ½ cup','Onions, cloves, cardamoms','1 tsp oil'],
+    steps:['Sauté whole spices and onions in oil.','Add chicken, stir-fry until white.','Pour water and brown rice, cook covered until dry.'] },
+  { name:'Veg Biryani (Cauliflower Rice)', type:'Dinner', img:'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=500&auto=format&fit=crop', cal:290, protein:'12g', fiber:'9g', diff:'Medium', time:25, budget:'m', tags:['Low Carb','Gluten-Free'],
+    ingredients:['Cauliflower (grated) — 2 cups','Mix chopped vegetables — ½ cup','Biryani masala — 1 tsp','Yogurt — 2 tbsp','1 tsp oil'],
+    steps:['Sauté vegetables and biryani masala in oil.','Add cauliflower rice and stir-fry.','Stir in yogurt and cook covered for 8 minutes.'] },
+  { name:'Light Mutton Barley Stew', type:'Dinner', img:'https://images.unsplash.com/photo-1547592180-85f173990554?w=500&auto=format&fit=crop', cal:460, protein:'28g', fiber:'11g', diff:'Hard', time:50, budget:'p', tags:[],
+    ingredients:['Lean mutton cubes — 100g','Barley — ⅓ cup','Spinach & carrots','Onion & spices'],
+    steps:['Sauté onions and mutton. Add water and barley.','Simmer until grains are soft. Stir in spinach at the end.'] },
+  { name:'Chicken Corn Soup (Light)', type:'Dinner', img:'https://images.unsplash.com/photo-1547592180-85f173990554?w=500&auto=format&fit=crop', cal:280, protein:'24g', fiber:'4g', diff:'Easy', time:20, budget:'a', tags:['High Protein','Low Carb'],
+    ingredients:['Shredded chicken — 120g','Sweetcorn kernels — ¼ cup','Chicken broth — 2 cups','1 egg white (whisked)','Soy sauce'],
+    steps:['Boil chicken and corn in broth.','Slowly drizzle egg white while stirring.','Season with black pepper and vinegar.'] },
+  { name:'Clear Vegetable Noodle Soup', type:'Dinner', img:'https://images.unsplash.com/photo-1547592180-85f173990554?w=500&auto=format&fit=crop', cal:260, protein:'8g', fiber:'6g', diff:'Easy', time:15, budget:'a', tags:['Dairy-Free'],
+    ingredients:['Vegetable broth — 2 cups','Whole wheat noodles — 40g','Cabbage, carrots & spring onion','Soy sauce'],
+    steps:['Boil noodles in water.','Sauté sliced veggies, add broth and cooked noodles.','Simmer 5 minutes.'] },
+
+  // === SNACKS ===
+  { name:'Detox Green Smoothie', type:'Snack', img:'https://images.unsplash.com/photo-1610970881699-44a5587cabec?w=500&auto=format&fit=crop', cal:160, protein:'5g', fiber:'8g', diff:'Easy', time:5, budget:'a', tags:['Dairy-Free','Low Carb'],
+    ingredients:['Spinach leaves — 1 cup','1 small green apple','Ginger slice','Coconut water — 1 cup','Chia seeds — 1 tsp'],
+    steps:['Blend spinach, apple, ginger, and coconut water until smooth.','Stir in chia seeds. Drink fresh.'] },
+  { name:'Fruit & Nut Yogurt Bowl', type:'Snack', img:'https://images.unsplash.com/photo-1505576399279-565b52d4ac71?w=500&auto=format&fit=crop', cal:210, protein:'12g', fiber:'4g', diff:'Easy', time:5, budget:'m', tags:['High Protein','Gluten-Free'],
+    ingredients:['Greek yogurt — 1 cup','10 almonds','Fresh berries or chopped apple — ½ cup'],
+    steps:['Place Greek yogurt in a bowl.','Top with almonds and fresh fruits. Serve.'] },
+  { name:'Roasted Chana (Chickpeas)', type:'Snack', img:'https://images.unsplash.com/photo-1540189549336-e6e99c3679fe?w=500&auto=format&fit=crop', cal:140, protein:'8g', fiber:'6g', diff:'Easy', time:5, budget:'a', tags:['Low Carb','Dairy-Free','Gluten-Free'],
+    ingredients:['Dry roasted chickpeas (chana) — ½ cup','Pinch of chaat masala'],
+    steps:['Sprinkle roasted chana with chaat masala. Enjoy crunchy!'] },
+  { name:'Cucumber Sticks & Hummus', type:'Snack', img:'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=500&auto=format&fit=crop', cal:180, protein:'6g', fiber:'5g', diff:'Easy', time:5, budget:'m', tags:['Dairy-Free','Low Carb','Gluten-Free'],
+    ingredients:['1 cucumber (sliced into sticks)','Hummus dip — 3 tbsp'],
+    steps:['Cut cucumber into long sticks.','Serve as dippers with fresh chickpea hummus.'] },
+  { name:'Mixed Nuts & Berries Bag', type:'Snack', img:'https://images.unsplash.com/photo-1505576399279-565b52d4ac71?w=500&auto=format&fit=crop', cal:190, protein:'6g', fiber:'4g', diff:'Easy', time:5, budget:'p', tags:['Gluten-Free','Dairy-Free','Low Carb'],
+    ingredients:['Walnuts & almonds — 15g','Dried goji berries or blueberries — 15g'],
+    steps:['Mix nuts and dried berries in a bag. Perfect portable snack.'] },
+  { name:'Apple Slices & Almond Butter', type:'Snack', img:'https://images.unsplash.com/photo-1610970881699-44a5587cabec?w=500&auto=format&fit=crop', cal:220, protein:'6g', fiber:'6g', diff:'Easy', time:5, budget:'m', tags:['Gluten-Free','Dairy-Free'],
+    ingredients:['1 red apple','Almond butter — 1 tbsp'],
+    steps:['Slice apple into wedges.','Dip or spread with creamy almond butter.'] },
+  { name:'Baked Beetroot Chips', type:'Snack', img:'https://images.unsplash.com/photo-1610970881699-44a5587cabec?w=500&auto=format&fit=crop', cal:120, protein:'3g', fiber:'5g', diff:'Easy', time:15, budget:'m', tags:['Gluten-Free'],
+    ingredients:['2 beetroots','Olive oil — 1 tsp','Salt & rosemary'],
+    steps:['Slice beetroots thinly. Toss in olive oil, salt, and rosemary.','Place on baking tray and bake at 180°C for 15 minutes.'] },
+  { name:'Roasted Makhana (Foxnuts)', type:'Snack', img:'https://images.unsplash.com/photo-1540189549336-e6e99c3679fe?w=500&auto=format&fit=crop', cal:130, protein:'4g', fiber:'5g', diff:'Easy', time:8, budget:'a', tags:['Gluten-Free','Low Carb'],
+    ingredients:['Phool makhana (foxnuts) — 1 cup','Turmeric & black salt — 1 pinch','Olive oil — ½ tsp'],
+    steps:['Dry roast makhana in a pan until crunchy.','Drizzle oil and toss with spices.'] },
+  { name:'Roasted Pumpkin Seeds', type:'Snack', img:'https://images.unsplash.com/photo-1540189549336-e6e99c3679fe?w=500&auto=format&fit=crop', cal:150, protein:'7g', fiber:'4g', diff:'Easy', time:10, budget:'m', tags:['Gluten-Free','Dairy-Free','Low Carb'],
+    ingredients:['Pumpkin seeds — 30g','Sea salt'],
+    steps:['Roast pumpkin seeds in pan until fragrant.','Sprinkle sea salt.'] },
+  { name:'Spiced Almonds & Pistachios', type:'Snack', img:'https://images.unsplash.com/photo-1505576399279-565b52d4ac71?w=500&auto=format&fit=crop', cal:180, protein:'6g', fiber:'3g', diff:'Easy', time:5, budget:'m', tags:['Gluten-Free','Dairy-Free','Low Carb'],
+    ingredients:['Almonds — 15g','Pistachios — 15g','Chat masala — 1 pinch'],
+    steps:['Mix nuts and sprinkle chat masala.'] },
+  { name:'Spicy Edamame', type:'Snack', img:'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=500&auto=format&fit=crop', cal:140, protein:'12g', fiber:'6g', diff:'Easy', time:8, budget:'p', tags:['Gluten-Free','Dairy-Free','High Protein'],
+    ingredients:['Edamame pods — 1 cup','Chili flakes & sea salt'],
+    steps:['Steam edamame pods.','Toss in chili flakes and sea salt.'] },
+  { name:'Roasted Sunflower Seeds', type:'Snack', img:'https://images.unsplash.com/photo-1505576399279-565b52d4ac71?w=500&auto=format&fit=crop', cal:160, protein:'6g', fiber:'3g', diff:'Easy', time:8, budget:'m', tags:['Gluten-Free','Low Carb'],
+    ingredients:['Sunflower seeds — 30g','Salt'],
+    steps:['Roast seeds, sprinkle salt.'] },
+  { name:'Cardamom Roasted Chickpeas', type:'Snack', img:'https://images.unsplash.com/photo-1540189549336-e6e99c3679fe?w=500&auto=format&fit=crop', cal:150, protein:'8g', fiber:'6g', diff:'Easy', time:10, budget:'a', tags:['Gluten-Free','Dairy-Free'],
+    ingredients:['Roasted chana — ½ cup','Cardamom powder — ¼ tsp','Stevia — 1 pinch'],
+    steps:['Toss roasted chana in cardamom powder and stevia for a sweet snack.'] },
+  { name:'Almonds & Dark Chocolate', type:'Snack', img:'https://images.unsplash.com/photo-1505576399279-565b52d4ac71?w=500&auto=format&fit=crop', cal:170, protein:'4g', fiber:'3g', diff:'Easy', time:5, budget:'p', tags:['Gluten-Free','Low Carb'],
+    ingredients:['Almonds — 10','Dark chocolate (85%) — 1 square (15g)'],
+    steps:['Serve almonds beside a square of premium dark chocolate.'] },
+  { name:'Chia Yogurt Parfait', type:'Snack', img:'https://images.unsplash.com/photo-1505576399279-565b52d4ac71?w=500&auto=format&fit=crop', cal:190, protein:'10g', fiber:'5g', diff:'Easy', time:5, budget:'m', tags:['Gluten-Free'],
+    ingredients:['Plain yogurt — ½ cup','Chia seeds — 1 tsp','Berries — ¼ cup'],
+    steps:['Mix chia seeds in yogurt.','Top with berries and serve.'] },
+  { name:'Fresh Guava with Chaat Masala', type:'Snack', img:'https://images.unsplash.com/photo-1610970881699-44a5587cabec?w=500&auto=format&fit=crop', cal:90, protein:'2g', fiber:'7g', diff:'Easy', time:5, budget:'a', tags:['Gluten-Free','Dairy-Free'],
+    ingredients:['1 fresh guava (sliced)','Chaat masala — 1 pinch','Lemon juice'],
+    steps:['Slice fresh guava.','Sprinkle chaat masala and lemon juice.'] },
+  { name:'Jaamun Fruit Bowl', type:'Snack', img:'https://images.unsplash.com/photo-1610970881699-44a5587cabec?w=500&auto=format&fit=crop', cal:80, protein:'1g', fiber:'4g', diff:'Easy', time:5, budget:'m', tags:['Gluten-Free','Dairy-Free','Low Carb'],
+    ingredients:['Fresh jaamun — 1 cup','Black salt — 1 pinch'],
+    steps:['Wash jaamuns.','Toss with a pinch of black salt.'] },
+  { name:'Amrood (Guava) Salad', type:'Snack', img:'https://images.unsplash.com/photo-1610970881699-44a5587cabec?w=500&auto=format&fit=crop', cal:110, protein:'2g', fiber:'8g', diff:'Easy', time:8, budget:'a', tags:['Gluten-Free','Dairy-Free'],
+    ingredients:['2 guavas (cubed)','Fresh mint leaves','Lemon juice & black pepper'],
+    steps:['Cube the guavas.','Mix with fresh mint leaves and dress with lemon juice.'] },
+  { name:'Fresh Papaya Slices', type:'Snack', img:'https://images.unsplash.com/photo-1610970881699-44a5587cabec?w=500&auto=format&fit=crop', cal:120, protein:'2g', fiber:'5g', diff:'Easy', time:5, budget:'a', tags:['Gluten-Free','Dairy-Free'],
+    ingredients:['Fresh papaya slices — 2 cups','Lemon squeeze'],
+    steps:['Slice fresh papaya. Squeeze lemon juice on top.'] },
+  { name:'Carrot & Hummus Cup', type:'Snack', img:'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=500&auto=format&fit=crop', cal:150, protein:'5g', fiber:'5g', diff:'Easy', time:5, budget:'m', tags:['Dairy-Free','Low Carb','Gluten-Free'],
+    ingredients:['1 large carrot (sliced)','Hummus — 3 tbsp'],
+    steps:['Cut carrots into sticks, dip into chickpea hummus.'] },
+  { name:'Egg Whites with Pepper', type:'Snack', img:'https://images.unsplash.com/photo-1525351484163-7529414344d8?w=500&auto=format&fit=crop', cal:100, protein:'14g', fiber:'0g', diff:'Easy', time:8, budget:'a', tags:['High Protein','Low Carb','Dairy-Free','Gluten-Free'],
+    ingredients:['3 egg whites (boiled)','Black pepper'],
+    steps:['Peel boiled eggs, discard yolks.','Sprinkle whites with fresh black pepper.'] }
+];
+
+let weekData = [];
+let currentDay = 0;
+let activeTags = new Set(['Breakfast','Lunch','Dinner','Snack']);
+let selectedBudget = 'm';
+let maxCookTime = 45;
+let activeDietaryTags = new Set();
+let ramadanMode = false;
+
+const tips = [
+  'Pani zyada piyen — target 3L log dashboard pe monitor karein.',
+  'Khane se pehle protein aur fiber lene se blood sugar spike 40% tak kam hoti hai.',
+  'Aik katori daal daily = diabetes aur BP control karne ke liye perfect high-fiber food.',
+  'Ramadan Fasting tip: Sehri mein oatmeal, anday aur dahi energy release sustain karte hain.',
+  'Basmati rice ya brown rice, white rice se 3x behtar low glycemic choices hain.',
+  'Almonds khane se 30 min pehle blood sugar spike ko rokte hain.',
+  'Tarawih ke baad 15-20 mins ki walk glucose manage karne ke liye nihayat mufeed hai.'
+];
+let tipIndex = 0;
+
+// Set Ramadan mode initial state from local storage or profile
+function loadInitialProfileData() {
+  const p = profiles[currentProfile] || profiles.ali;
+  
+  // Dynamic header updates
+  const headTitle = document.getElementById('planSubTitle');
+  if (headTitle) {
+    headTitle.textContent = `Customized for ${p.name} • ${p.condText} plan`;
+  }
+  
+  const userAvatar = document.querySelector('.user-avatar');
+  const userChip = document.querySelector('.user-chip');
+  if (userAvatar && userChip) {
+    userAvatar.textContent = p.avatar;
+    userAvatar.style.background = bgColors[Object.keys(profiles).indexOf(currentProfile) % bgColors.length];
+    userChip.innerHTML = `<div class="user-avatar" style="background:${userAvatar.style.background}">${p.avatar}</div>${p.name}`;
+  }
+
+  const sideName = document.querySelector('.family-name');
+  if (sideName) sideName.textContent = p.name;
+  
+  const sidebarSub = document.querySelector('.family-sub');
+  if (sidebarSub) sidebarSub.textContent = `Managing ${Object.keys(profiles).length} Profiles`;
+
+  // Set default filters based on condition
+  if (p.condition === 'diabetes') {
+    activeDietaryTags.add('Low Carb');
+    activeDietaryTags.add('High Protein');
+    document.querySelectorAll('.filter-tag').forEach(btn => {
+      if (btn.textContent === 'Low Carb' || btn.textContent === 'High Protein') btn.classList.add('active');
+    });
+  } else if (p.condition === 'bp') {
+    activeDietaryTags.add('Dairy-Free');
+    document.querySelectorAll('.filter-tag').forEach(btn => {
+      if (btn.textContent === 'Dairy-Free') btn.classList.add('active');
+    });
+  }
+}
+
+// ===== MEAL PLAN GENERATOR (7 UNIQUE DAYS) =====
+// Helper to shuffle arrays
+function shuffleArray(array) {
+  for (let i = array.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [array[i], array[j]] = [array[j], array[i]];
+  }
+  return array;
+}
+
+// ===== MEAL PLAN GENERATOR (7 UNIQUE DAYS) =====
+function generateMealPlan() {
+  const p = profiles[currentProfile] || profiles.ali;
+  weekData = [];
+
+  const days = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  const nums = ['01','02','03','04','05','06','07'];
+
+  // Filter master database based on current settings
+  const filteredMeals = masterMeals.filter(m => {
+    // 1. Cook Time
+    if (m.time > maxCookTime) return false;
+    
+    // 2. Budget
+    if (selectedBudget === 'a' && m.budget !== 'a') return false;
+    if (selectedBudget === 'm' && m.budget === 'p') return false;
+    
+    // 3. Dietary tags (Gluten-Free, etc.)
+    if (activeDietaryTags.size > 0) {
+      const match = Array.from(activeDietaryTags).some(tag => m.tags.includes(tag));
+      if (!match) return false;
+    }
+    
+    return true;
+  });
+
+  // Helper to get meals by category and sort based on target weight goal
+  function getCategoryPool(type) {
+    let pool = filteredMeals.filter(m => m.type === type);
+    
+    // Ensure variety: if pool has fewer than 7 items, backfill from masterMeals
+    if (pool.length < 7) {
+      const unfiltered = masterMeals.filter(m => m.type === type);
+      unfiltered.forEach(m => {
+        if (pool.length < 7 && !pool.some(pm => pm.name === m.name)) {
+          pool.push(m);
+        }
+      });
+    }
+
+    // Sort/prioritize based on weight gain/loss goal
+    const isGain = p.targetWeight && p.targetWeight > p.weight;
+    const isLoss = p.targetWeight && p.targetWeight < p.weight;
+    
+    if (isGain) {
+      pool.sort((a, b) => b.cal - a.cal); // Highest calories first
+    } else if (isLoss) {
+      pool.sort((a, b) => a.cal - b.cal); // Lowest calories first
+    }
+
+    return pool;
+  }
+
+  // Shuffle pools dynamically on generation to provide 100% unique combinations every time
+  const breakfastPool = shuffleArray([...getCategoryPool('Breakfast')]);
+  const lunchPool = shuffleArray([...getCategoryPool('Lunch')]);
+  const dinnerPool = shuffleArray([...getCategoryPool('Dinner')]);
+  const snackPool = shuffleArray([...getCategoryPool('Snack')]);
+
+  for (let i = 0; i < 7; i++) {
+    // Pick unique index per day (guaranteed unique since pools have 7 items and we shuffle them)
+    const bMeal = breakfastPool[i % breakfastPool.length];
+    const lMeal = lunchPool[(i + 1) % lunchPool.length];
+    const dMeal = dinnerPool[(i + 2) % dinnerPool.length];
+    const sMeal = snackPool[(i + 3) % snackPool.length];
+
+    // If Ramadan Mode active, replace Breakfast and Lunch tags to Sehri and Iftar
+    const meals = [
+      { ...bMeal, type: ramadanMode ? 'Sehri' : 'Breakfast' },
+      { ...lMeal, type: ramadanMode ? 'Iftar' : 'Lunch' },
+      { ...dMeal, type: 'Dinner' },
+      { ...sMeal, type: 'Snack' }
+    ];
+
+    weekData.push({
+      day: days[i],
+      num: nums[i],
+      meals: meals
+    });
+  }
+
+  // Save to dashboard meals so dashboard is in sync
+  let allDashboardMeals = JSON.parse(localStorage.getItem('nutriDashboardMeals')) || {};
+  allDashboardMeals[currentProfile] = weekData;
+  localStorage.setItem('nutriDashboardMeals', JSON.stringify(allDashboardMeals));
+}
+
+function renderDaySelector() {
+  const row = document.getElementById('daySelectorRow');
+  row.innerHTML = weekData.map((d,i) => `
+    <div class="day-pill ${i===currentDay?'active':''}" onclick="selectDay(${i})">
+      <span class="pill-num">${d.num}</span>
+      <span class="pill-name">${d.day}</span>
+    </div>`).join('');
+}
+
+function selectDay(i) {
+  currentDay = i;
+  renderDaySelector();
+  renderMeals();
+  showToast(`📅 ${weekData[i].day} meals loaded!`);
+}
+
+function renderMeals() {
+  const day = weekData[currentDay];
+  const grid = document.getElementById('mealsGrid');
+  
+  // Filter meals displayed by checked type chips (Breakfast/Lunch/Dinner/Snack)
+  const filtered = day.meals.filter(m => {
+    let typeKey = m.type;
+    if (typeKey === 'Sehri') typeKey = 'Breakfast';
+    if (typeKey === 'Iftar') typeKey = 'Lunch';
+    return activeTags.has(typeKey);
+  });
+
+  if (filtered.length === 0) {
+    grid.innerHTML = '<div style="grid-column:span 2;text-align:center;padding:40px;color:var(--text-muted);font-size:14px;">No meals match your current filters. Try adjusting the filters!</div>';
+    return;
+  }
+
+  grid.innerHTML = filtered.map((m,i) => {
+    const originalIndex = day.meals.indexOf(m);
+    
+    // Badge styling first letter
+    const letter = m.type[0];
+    
+    return `
+      <div class="meal-card" style="animation:fadeInUp 0.3s ${i*0.08}s ease both;">
+        <div class="meal-img-wrap" onclick="openRecipe(${currentDay},${originalIndex})">
+          <img class="meal-img" src="${m.img}" alt="${m.name}" onerror="this.src='https://via.placeholder.com/400x200/dcfce7/15803d?text=🍽️'"/>
+          <div class="meal-type-tag tag-${letter}">${m.type}</div>
+        </div>
+        <div class="meal-body">
+          <div class="meal-name">${m.name}</div>
+          <div class="meal-meta-row">
+            <span>⏱ ${m.time} min</span>
+            ${m.tags.slice(0,2).map(t=>`<span>🌿 ${t}</span>`).join('')}
+          </div>
+          <div class="meal-stat-row">
+            <span class="meal-stat s-cal">🔥 ${m.cal} kcal</span>
+            <span class="meal-stat s-pro">${m.protein} Protein</span>
+            <span class="meal-stat s-fib">${m.fiber} Fiber</span>
+            <span class="meal-stat s-dif">${m.diff}</span>
+          </div>
+          <button class="recipe-btn" onclick="openRecipe(${currentDay},${originalIndex})">📖 View Recipe</button>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+let selectedMealIndex = 0;
+function openRecipe(dayIdx, mealIdx) {
+  selectedMealIndex = mealIdx;
+  const m = weekData[dayIdx].meals[mealIdx];
+  document.getElementById('recipeImg').src = m.img;
+  document.getElementById('recipeImg').alt = m.name;
+  document.getElementById('recipeTitle').textContent = m.name;
+  document.getElementById('recipeMeta').innerHTML = `
+    <div class="recipe-meta-item">⏱ ${m.time} min</div>
+    <div class="recipe-meta-item">🔥 ${m.cal} kcal</div>
+    <div class="recipe-meta-item">💪 ${m.diff}</div>
+    <div class="recipe-meta-item">🥗 ${m.type}</div>`;
+  document.getElementById('recipeStats').innerHTML = `
+    <div class="recipe-stat"><div class="recipe-stat-val">${m.cal}</div><div class="recipe-stat-label">Calories</div></div>
+    <div class="recipe-stat"><div class="recipe-stat-val">${m.protein}</div><div class="recipe-stat-label">Protein</div></div>
+    <div class="recipe-stat"><div class="recipe-stat-val">${m.fiber}</div><div class="recipe-stat-label">Fiber</div></div>
+    <div class="recipe-stat"><div class="recipe-stat-val">${m.diff}</div><div class="recipe-stat-label">Difficulty</div></div>`;
+  document.getElementById('recipeIngredients').innerHTML = m.ingredients.map(ing=>`<div class="ingredient-item">${ing}</div>`).join('');
+  document.getElementById('recipeSteps').innerHTML = m.steps.map((s,i)=>`<div class="step-item"><div class="step-num">${i+1}</div><div class="step-text">${s}</div></div>`).join('');
+  document.getElementById('recipeModal').classList.add('open');
+}
+
+function closeRecipeModal(e) { 
+  if(e.target === document.getElementById('recipeModal')) {
+    document.getElementById('recipeModal').classList.remove('open');
+  } 
+}
+
+function addToMealPlan() {
+  const m = weekData[currentDay].meals[selectedMealIndex];
+  if (m) {
+    m.done = true;
+    let allDashboardMeals = JSON.parse(localStorage.getItem('nutriDashboardMeals')) || {};
+    allDashboardMeals[currentProfile] = weekData;
+    localStorage.setItem('nutriDashboardMeals', JSON.stringify(allDashboardMeals));
+    document.getElementById('recipeModal').classList.remove('open');
+    showToast(`✅ ${m.name} marked as consumed in today's plan!`);
+    renderMeals();
+  }
+}
+
+// Meal type category toggles
+function toggleTag(btn, tag) {
+  btn.classList.toggle('active');
+  
+  if (['Breakfast', 'Lunch', 'Dinner', 'Snack'].includes(tag)) {
+    // Is a meal type filter
+    if (activeTags.has(tag)) activeTags.delete(tag);
+    else activeTags.add(tag);
+    renderMeals();
+  } else {
+    // Is a dietary tag filter
+    if (activeDietaryTags.has(tag)) activeDietaryTags.delete(tag);
+    else activeDietaryTags.add(tag);
+    applyFilter();
+  }
+}
+
+function applyFilter() {
+  generateMealPlan();
+  renderMeals();
+  showToast('🔄 Meal plan regenerated based on settings!');
+}
+
+function toggleRamadan(btn) {
+  ramadanMode = !ramadanMode;
+  btn.classList.toggle('active', ramadanMode);
+  btn.textContent = ramadanMode ? '🌙 Ramadan Mode' : 'Ramadan Mode';
+  
+  const p = profiles[currentProfile] || profiles.ali;
+  
+  document.getElementById('planSubTitle').textContent = ramadanMode ?
+    'Ramadan Mode — Sehri & Iftar optimized meals' :
+    `Customized for ${p.name} • ${p.condText} plan`;
+    
+  applyFilter();
+}
+
+function exportPDF() {
+  showToast('📄 Preparing PDF export...');
+  setTimeout(() => { window.print(); showToast('✅ PDF ready!'); }, 500);
+}
+
+// Rotate tips every 8s
+function rotateTip() {
+  tipIndex = (tipIndex + 1) % tips.length;
+  const el = document.getElementById('nutri-tip-text');
+  if (el) {
+    el.style.opacity = '0';
+    setTimeout(()=>{ el.textContent = tips[tipIndex]; el.style.opacity='1'; }, 400);
+  }
+}
+setInterval(rotateTip, 8000);
+
+function showToast(msg) {
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2800);
+}
+
+// Event Listeners for Filter Panel inputs
+document.addEventListener('DOMContentLoaded', () => {
+  // Budget range radio buttons
+  document.querySelectorAll('input[name="budget"]').forEach(radio => {
+    radio.addEventListener('change', (e) => {
+      selectedBudget = e.target.value;
+      applyFilter();
+    });
+  });
+
+  // Time slider
+  const slider = document.querySelector('.filter-slider');
+  if (slider) {
+    slider.addEventListener('change', (e) => {
+      maxCookTime = parseInt(e.target.value);
+      applyFilter();
+    });
+  }
+});
+
+// Setup active sidebar highlighting and settings button click
+function syncSidebar() {
+  const sidebarNav = document.querySelectorAll('.nav-item');
+  sidebarNav.forEach(item => {
+    if (item.getAttribute('href') === 'meal-plan.html') {
+      item.classList.add('active');
+    } else {
+      item.classList.remove('active');
+    }
+  });
+
+  const sidebarSettings = document.querySelector('.sidebar-link[onclick*="Settings"]');
+  if (sidebarSettings) {
+    sidebarSettings.removeAttribute('onclick');
+    sidebarSettings.addEventListener('click', openSettingsModal);
+  }
+}
+
+// ===== SETTINGS MODAL =====
+function openSettingsModal() {
+  const key = localStorage.getItem('OPENROUTER_API_KEY') || '';
+  document.getElementById('settingsApiKey').value = key;
+  document.getElementById('settingsModal').classList.add('open');
+}
+function closeSettingsModal(e) {
+  if (e.target === document.getElementById('settingsModal') || e.target.classList.contains('modal-overlay')) {
+    document.getElementById('settingsModal').classList.remove('open');
+  }
+}
+function saveSettings() {
+  const keyVal = document.getElementById('settingsApiKey').value.trim();
+  localStorage.setItem('OPENROUTER_API_KEY', keyVal);
+  document.getElementById('settingsModal').classList.remove('open');
+  showToast('⚙️ Settings saved successfully!');
+}
+
+// Init execution
+loadInitialProfileData();
+
+// Load existing plan from localStorage if it exists, otherwise generate
+let existingAllPlans = JSON.parse(localStorage.getItem('nutriDashboardMeals')) || {};
+if (existingAllPlans[currentProfile]) {
+  weekData = existingAllPlans[currentProfile];
+} else {
+  generateMealPlan();
+}
+
+renderDaySelector();
+renderMeals();
+syncSidebar();
+</script>
+
+<!-- SETTINGS MODAL -->
+<div class="modal-overlay" id="settingsModal" onclick="closeSettingsModal(event)">
+  <div class="modal-box">
+    <div class="modal-header">
+      <span class="modal-title">⚙️ NutriAI Settings</span>
+      <button class="modal-close" onclick="document.getElementById('settingsModal').classList.remove('open')">✕</button>
+    </div>
+    <div class="form-group">
+      <label class="form-label" style="font-size:13px;font-weight:600;display:block;margin-bottom:6px;">OpenRouter API Key</label>
+      <input type="password" class="form-input" id="settingsApiKey" placeholder="sk-or-v1-... type ka key paste karein..." style="width:100%;padding:10px 14px;border:1.5px solid var(--border);border-radius:var(--radius-sm);outline:none;font-size:13px;"/>
+      <div style="font-size:11px;color:var(--text-muted);margin-top:6px;">
+        Apna key <a href="https://openrouter.ai/keys" target="_blank" style="color:var(--primary);font-weight:700;">yahan click karke OpenRouter se free/paid mein haasil karein</a>. Key local storage mein save rahegi.
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:20px;">
+      <button style="flex:1;padding:11px;border-radius:var(--radius-full);border:1.5px solid var(--border);background:white;font-size:14px;font-weight:600;cursor:pointer;" onclick="document.getElementById('settingsModal').classList.remove('open')">Cancel</button>
+      <button style="flex:2;padding:11px;border-radius:var(--radius-full);background:var(--primary);color:white;border:none;font-size:14px;font-weight:700;cursor:pointer;" onclick="saveSettings()">Save Settings</button>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,794 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <!-- family-profiles.html - fixed saveProfile to add cards to DOM -->
+  <title>NutriAI – Family Profiles</title>
+  <link rel="stylesheet" href="styles.css"/>
+  <style>
+    body { background: var(--page-bg); overflow: hidden; }
+    .content-area { flex:1; overflow-y:auto; padding:24px; }
+    .page-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:24px; }
+    .page-title { font-size:24px; font-weight:900; letter-spacing:-0.5px; }
+    .page-sub { font-size:13px; color:var(--text-muted); margin-top:3px; }
+    .add-profile-btn { display:flex; align-items:center; gap:8px; padding:10px 20px; background:var(--primary); color:white; border:none; border-radius:var(--radius-full); font-size:14px; font-weight:600; cursor:pointer; transition:all 0.2s; }
+    .add-profile-btn:hover { background:var(--primary-hover); transform:translateY(-1px); box-shadow:var(--shadow-green); }
+    .profiles-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:18px; margin-bottom:24px; }
+    .profile-card { background:white; border:1px solid var(--border); border-radius:20px; overflow:hidden; transition:all 0.25s; cursor:pointer; }
+    .profile-card:hover { transform:translateY(-3px); box-shadow:var(--shadow-lg); border-color:var(--border-green); }
+    .profile-card-top { padding:20px; display:flex; align-items:center; gap:14px; }
+    .profile-big-av { width:52px; height:52px; border-radius:16px; display:flex; align-items:center; justify-content:center; color:white; font-size:18px; font-weight:800; flex-shrink:0; }
+    .profile-info h3 { font-size:16px; font-weight:800; margin-bottom:4px; }
+    .profile-condition { display:inline-flex; align-items:center; gap:5px; padding:3px 10px; border-radius:var(--radius-full); font-size:11px; font-weight:700; }
+    .cond-diabetes { background:#fee2e2; color:#dc2626; }
+    .cond-healthy { background:var(--primary-xlight); color:var(--primary); }
+    .cond-bp { background:#eff6ff; color:#2563eb; }
+    .cond-heart { background:#fdf2f8; color:#be185d; }
+    .profile-stats-row { display:grid; grid-template-columns:repeat(3,1fr); gap:0; border-top:1px solid var(--border); }
+    .profile-stat { padding:14px; text-align:center; border-right:1px solid var(--border); }
+    .profile-stat:last-child { border-right:none; }
+    .stat-num { font-size:17px; font-weight:900; }
+    .stat-lbl { font-size:10px; color:var(--text-muted); font-weight:600; text-transform:uppercase; letter-spacing:0.3px; margin-top:2px; }
+    .profile-actions { display:flex; gap:8px; padding:14px 16px; border-top:1px solid var(--border); }
+    .prof-btn { flex:1; padding:8px; border-radius:var(--radius-sm); font-size:12px; font-weight:600; cursor:pointer; border:1.5px solid var(--border); background:white; color:var(--text-secondary); transition:all 0.15s; }
+    .prof-btn:hover { border-color:var(--primary); color:var(--primary); background:var(--light-bg); }
+    .prof-btn.primary { background:var(--primary); color:white; border-color:var(--primary); }
+    .prof-btn.primary:hover { background:var(--primary-hover); }
+    /* QUICK INSIGHTS */
+    .insights-section { margin-bottom:24px; }
+    .insights-title { font-size:16px; font-weight:800; margin-bottom:14px; }
+    .insights-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; }
+    .insight-card { background:white; border:1px solid var(--border); border-radius:var(--radius-lg); padding:16px; }
+    .insight-icon { font-size:24px; margin-bottom:8px; }
+    .insight-label { font-size:12px; color:var(--text-muted); margin-bottom:4px; }
+    .insight-val { font-size:18px; font-weight:900; }
+    /* MODAL */
+    .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.45); z-index:1000; display:none; align-items:center; justify-content:center; }
+    .modal-overlay.open { display:flex; }
+    .modal-box { background:white; border-radius:24px; padding:28px; max-width:440px; width:90%; box-shadow:0 20px 60px rgba(0,0,0,0.2); animation:modalPop 0.25s ease; }
+    @keyframes modalPop { from{transform:scale(0.92);opacity:0;} to{transform:scale(1);opacity:1;} }
+    .modal-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; }
+    .modal-title { font-size:18px; font-weight:800; }
+    .modal-close { width:32px; height:32px; border-radius:50%; background:var(--page-bg); border:1px solid var(--border); display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:16px; }
+    .modal-close:hover { background:var(--border); }
+    .form-group { margin-bottom:16px; }
+    .form-label { font-size:13px; font-weight:600; color:var(--text-primary); margin-bottom:6px; display:block; }
+    .form-input { width:100%; padding:10px 14px; border:1.5px solid var(--border); border-radius:var(--radius-sm); font-size:13px; font-family:inherit; outline:none; transition:border-color 0.2s; }
+    .form-input:focus { border-color:var(--primary); }
+    .form-select { width:100%; padding:10px 14px; border:1.5px solid var(--border); border-radius:var(--radius-sm); font-size:13px; font-family:inherit; outline:none; }
+    .form-row { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+    .toast { position:fixed; bottom:24px; right:24px; background:#1e293b; color:white; padding:12px 20px; border-radius:12px; font-size:13px; font-weight:600; z-index:9999; opacity:0; transform:translateY(10px); transition:all 0.3s; pointer-events:none; }
+    .toast.show { opacity:1; transform:translateY(0); }
+  </style>
+</head>
+<body>
+<div class="app-layout">
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="sidebar-logo-icon"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M12 2C8.5 2 6 5 6 8c0 2.5 1.5 4.5 3.5 5.5L8 20h8l-1.5-6.5C16.5 12.5 18 10.5 18 8c0-3-2.5-6-6-6z" fill="white"/></svg></div>
+      <span class="sidebar-logo-text">NutriAI</span>
+    </div>
+    <div class="family-card">
+      <div class="family-avatar">FA</div>
+      <div class="family-name">Family Health</div>
+      <div class="family-sub">Managing 4 Profiles</div>
+    </div>
+    <nav class="sidebar-nav">
+      <a href="dashboard.html" class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>Dashboard</a>
+      <a href="meal-plan.html" class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8h1a4 4 0 010 8h-1"/><path d="M2 8h16v9a4 4 0 01-4 4H6a4 4 0 01-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg>Meal Plan</a>
+      <a href="family-profiles.html" class="nav-item active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>Family Profiles</a>
+      <a href="health-reports.html" class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>Health Reports</a>
+      <a href="nutri-ai.html" class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2C8.5 2 6 5 6 8c0 2.5 1.5 4.5 3.5 5.5L8 20h8l-1.5-6.5C16.5 12.5 18 10.5 18 8c0-3-2.5-6-6-6z"/></svg>NutriAI</a>
+    </nav>
+    <div class="sidebar-bottom">
+      <button class="upgrade-btn" onclick="showToast('⭐ Pro plan has unlimited profiles!')">⚡ Upgrade to Pro</button>
+      <div class="sidebar-link" onclick="openSettingsModal()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93l-1.41 1.41M4.93 4.93l1.41 1.41M12 2v2M12 20v2M19.07 19.07l-1.41-1.41M4.93 19.07l1.41-1.41M22 12h-2M4 12H2"/></svg>Settings</div>
+      <div class="sidebar-link" onclick="window.location='nutri-ai.html'"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>Support</div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <div class="main-content">
+    <header class="app-header">
+      <div class="header-logo-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" stroke="white" stroke-width="2"/><circle cx="9" cy="7" r="4" stroke="white" stroke-width="2"/></svg></div>
+      <span class="header-brand">NutriAI</span>
+      <div class="header-divider"></div>
+      <span class="header-title">Family Profiles</span>
+      <div class="header-spacer"></div>
+      <div class="header-actions">
+        <button class="icon-btn" title="Notifications" onclick="showToast('🔔 No new notifications')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg></button>
+        <div class="user-chip"><div class="user-avatar">FA</div>Family</div>
+      </div>
+    </header>
+
+    <div class="content-area">
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">Family Profiles 👨‍👩‍👧‍👦</h1>
+          <p class="page-sub">Manage health profiles for all family members</p>
+        </div>
+        <button class="add-profile-btn" onclick="openAddModal()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Add Profile
+        </button>
+      </div>
+
+      <!-- PROFILES GRID -->
+      <div class="profiles-grid" id="profilesGrid">
+        <!-- Dynamic Profiles Grid -->
+      </div>
+
+      <!-- FAMILY INSIGHTS -->
+      <div class="insights-section">
+        <div class="insights-title">Family Health Insights</div>
+        <div class="insights-grid">
+          <div class="insight-card">
+            <div class="insight-icon">👥</div>
+            <div class="insight-label">Total Members</div>
+            <div class="insight-val" id="insightTotal" style="color:var(--primary);">4</div>
+          </div>
+          <div class="insight-card">
+            <div class="insight-icon">⚠️</div>
+            <div class="insight-label">Need Attention</div>
+            <div class="insight-val" id="insightAttention" style="color:#ef4444;">2</div>
+          </div>
+          <div class="insight-card">
+            <div class="insight-icon">✅</div>
+            <div class="insight-label">On Track</div>
+            <div class="insight-val" id="insightOnTrack" style="color:var(--primary);">2</div>
+          </div>
+          <div class="insight-card">
+            <div class="insight-icon">🍽️</div>
+            <div class="insight-label">Avg Daily Calories</div>
+            <div class="insight-val" id="insightAvgCal">1,720</div>
+          </div>
+          <div class="insight-card">
+            <div class="insight-icon">💧</div>
+            <div class="insight-label">Avg Hydration</div>
+            <div class="insight-val" id="insightAvgHyd" style="color:#0284c7;">68%</div>
+          </div>
+          <div class="insight-card">
+            <div class="insight-icon">📊</div>
+            <div class="insight-label">Reports This Month</div>
+            <div class="insight-val" id="insightReports">7</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ADD PROFILE MODAL -->
+<div class="modal-overlay" id="addModal" onclick="closeModal(event)">
+  <div class="modal-box">
+    <div class="modal-header">
+      <span class="modal-title">➕ Add New Profile</span>
+      <button class="modal-close" onclick="document.getElementById('addModal').classList.remove('open')">✕</button>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Full Name *</label>
+      <input type="text" class="form-input" id="newName" placeholder="e.g. Fatima Khan"/>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Age *</label>
+        <input type="number" class="form-input" id="newAge" placeholder="e.g. 25" min="1" max="120"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Gender</label>
+        <select class="form-select" id="newGender">
+          <option>Male</option><option>Female</option><option>Other</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Relation</label>
+      <select class="form-select" id="newRelation">
+        <option>Spouse</option><option>Child</option><option>Parent</option><option>Sibling</option><option>Other</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Health Condition</label>
+      <select class="form-select" id="newCondition">
+        <option value="healthy">Healthy</option>
+        <option value="diabetes">Diabetes</option>
+        <option value="bp">High Blood Pressure</option>
+        <option value="heart">Heart Condition</option>
+        <option value="weight">Weight Management</option>
+      </select>
+    </div>
+    <div class="form-row" style="grid-template-columns: 1fr 1fr 1fr;">
+      <div class="form-group">
+        <label class="form-label">Weight (kg) *</label>
+        <input type="number" class="form-input" id="newWeight" placeholder="e.g. 65" min="1"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Target Weight (kg) *</label>
+        <input type="number" class="form-input" id="newTargetWeight" placeholder="e.g. 60" min="1"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Height (cm)</label>
+        <input type="number" class="form-input" id="newHeight" placeholder="e.g. 165" min="1"/>
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:4px;">
+      <button style="flex:1;padding:11px;border-radius:var(--radius-full);border:1.5px solid var(--border);background:white;font-size:14px;font-weight:600;cursor:pointer;" onclick="document.getElementById('addModal').classList.remove('open')">Cancel</button>
+      <button style="flex:2;padding:11px;border-radius:var(--radius-full);background:var(--primary);color:white;border:none;font-size:14px;font-weight:700;cursor:pointer;" onclick="saveProfile()">Save Profile</button>
+    </div>
+  </div>
+</div>
+
+<!-- EDIT PROFILE MODAL -->
+<div class="modal-overlay" id="editModal" onclick="closeEditModal(event)">
+  <div class="modal-box">
+    <div class="modal-header">
+      <span class="modal-title">✏️ Edit Profile</span>
+      <button class="modal-close" onclick="document.getElementById('editModal').classList.remove('open')">✕</button>
+    </div>
+    <input type="hidden" id="editProfileId"/>
+    <div class="form-group">
+      <label class="form-label">Full Name *</label>
+      <input type="text" class="form-input" id="editName"/>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Age *</label>
+        <input type="number" class="form-input" id="editAge" min="1" max="120"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Gender</label>
+        <select class="form-select" id="editGender">
+          <option>Male</option><option>Female</option><option>Other</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Relation</label>
+      <select class="form-select" id="editRelation">
+        <option>Head of Family</option><option>Spouse</option><option>Child</option><option>Parent</option><option>Sibling</option><option>Other</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Health Condition</label>
+      <select class="form-select" id="editCondition">
+        <option value="healthy">Healthy</option>
+        <option value="diabetes">Diabetes</option>
+        <option value="bp">High Blood Pressure</option>
+        <option value="heart">Heart Condition</option>
+        <option value="weight">Weight Management</option>
+      </select>
+    </div>
+    <div class="form-row" style="grid-template-columns: 1fr 1fr 1fr;">
+      <div class="form-group">
+        <label class="form-label">Weight (kg) *</label>
+        <input type="number" class="form-input" id="editWeight" min="1"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Target Weight (kg) *</label>
+        <input type="number" class="form-input" id="editTargetWeight" min="1"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Height (cm)</label>
+        <input type="number" class="form-input" id="editHeight" min="1"/>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Stats Value (e.g. Glucose/BP)</label>
+        <input type="text" class="form-input" id="editStatusVal" placeholder="e.g. 124 mg/dL ya 142/88 mmHg"/>
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:12px;">
+      <button style="flex:1;padding:11px;border-radius:var(--radius-full);border:1.5px solid var(--border);background:white;font-size:14px;font-weight:600;cursor:pointer;" onclick="document.getElementById('editModal').classList.remove('open')">Cancel</button>
+      <button style="flex:2;padding:11px;border-radius:var(--radius-full);background:var(--primary);color:white;border:none;font-size:14px;font-weight:700;cursor:pointer;" onclick="updateProfile()">Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ===== SHARED DATABASE HELPERS =====
+function initNutriDatabase() {
+  const defaultProfiles = {
+    ali: {
+      id: 'ali',
+      name: 'Ali Khan',
+      welcome: 'As-salamu Alaykum, Ali 👋',
+      avatar: 'AK',
+      age: 34,
+      gender: 'Male',
+      relation: 'Head of Family',
+      condition: 'healthy',
+      condText: '✅ Healthy',
+      condClass: 'cond-healthy',
+      weight: 82.3,
+      height: 178,
+      calories: 840,
+      total: 1840,
+      prot: 45,
+      protT: 120,
+      carb: 110,
+      carbT: 290,
+      fat: 28,
+      fatT: 65,
+      glasses: 3,
+      waterGoal: 3,
+      statusLabel: 'Daily Cal',
+      statusVal: '1,840'
+    },
+    zoya: {
+      id: 'zoya',
+      name: 'Zoya Khan',
+      welcome: 'Good Morning, Zoya! 😊',
+      avatar: 'ZK',
+      age: 30,
+      gender: 'Female',
+      relation: 'Spouse',
+      condition: 'healthy',
+      condText: '✅ Healthy',
+      condClass: 'cond-healthy',
+      weight: 62.1,
+      height: 162,
+      calories: 620,
+      total: 1600,
+      prot: 55,
+      protT: 100,
+      carb: 80,
+      carbT: 220,
+      fat: 22,
+      fatT: 55,
+      glasses: 5,
+      waterGoal: 2.5,
+      statusLabel: 'Daily Cal',
+      statusVal: '1,600'
+    },
+    ahmed: {
+      id: 'ahmed',
+      name: 'Ahmed Khan',
+      welcome: 'As-salamu Alaykum, Ahmed 👋',
+      avatar: 'AK',
+      age: 62,
+      gender: 'Male',
+      relation: 'Father',
+      condition: 'diabetes',
+      condText: '🩺 Diabetes Control',
+      condClass: 'cond-diabetes',
+      weight: 78.4,
+      height: 170,
+      calories: 1050,
+      total: 1840,
+      prot: 70,
+      protT: 120,
+      carb: 140,
+      carbT: 290,
+      fat: 35,
+      fatT: 65,
+      glasses: 2,
+      waterGoal: 3,
+      statusLabel: 'Glucose mg/dL',
+      statusVal: '124'
+    },
+    sara: {
+      id: 'sara',
+      name: 'Sara Khan',
+      welcome: 'Good Morning, Sara! 😊',
+      avatar: 'SK',
+      age: 58,
+      gender: 'Female',
+      relation: 'Mother',
+      condition: 'bp',
+      condText: '💙 High BP Watch',
+      condClass: 'cond-bp',
+      weight: 70.2,
+      height: 158,
+      calories: 900,
+      total: 1700,
+      prot: 50,
+      protT: 110,
+      carb: 120,
+      carbT: 250,
+      fat: 30,
+      fatT: 60,
+      glasses: 4,
+      waterGoal: 2.5,
+      statusLabel: 'BP (mmHg)',
+      statusVal: '142/88'
+    }
+  };
+
+  if (!localStorage.getItem('nutriProfiles')) {
+    localStorage.setItem('nutriProfiles', JSON.stringify(defaultProfiles));
+  } else {
+    try {
+      let currentProfiles = JSON.parse(localStorage.getItem('nutriProfiles'));
+      let mig = false;
+      if (currentProfiles.ali && !currentProfiles.ali.hasOwnProperty('targetWeight')) { currentProfiles.ali.targetWeight = 80.0; mig = true; }
+      if (currentProfiles.zoya && !currentProfiles.zoya.hasOwnProperty('targetWeight')) { currentProfiles.zoya.targetWeight = 60.0; mig = true; }
+      if (currentProfiles.ahmed && !currentProfiles.ahmed.hasOwnProperty('targetWeight')) { currentProfiles.ahmed.targetWeight = 75.0; mig = true; }
+      if (currentProfiles.sara && !currentProfiles.sara.hasOwnProperty('targetWeight')) { currentProfiles.sara.targetWeight = 72.0; mig = true; }
+      if (mig) {
+        localStorage.setItem('nutriProfiles', JSON.stringify(currentProfiles));
+      }
+    } catch(e) {
+      console.warn('Migration failed, resetting profiles:', e);
+      localStorage.setItem('nutriProfiles', JSON.stringify(defaultProfiles));
+    }
+  }
+  if (!localStorage.getItem('activeProfileId')) {
+    localStorage.setItem('activeProfileId', 'ali');
+  }
+
+  const defaultReports = [
+    { id: 1, type: 'blood', name: 'CBC Blood Test', patient: 'ahmed', patientName: 'Ahmed Khan', date: 'Jun 10, 2026', timeAgo: '3 days ago', badgeClass: 'badge-attention', badgeText: '⚠️ Attention', findings: [{label:'HbA1c', val:'7.2% ↑', cls:'warn'}, {label:'Fasting Glucose', val:'124 mg/dL ↑', cls:'warn'}, {label:'Cholesterol (LDL)', val:'98 mg/dL ✓', cls:'ok'}, {label:'Hemoglobin', val:'14.2 g/dL ✓', cls:'ok'}], insight: 'HbA1c 7.2% — diabetes not well controlled. More fiber, less sugar, and daily 30-min walk recommended. Retest in 3 months.', file: 'ahmed-cbc.pdf' },
+    { id: 2, type: 'glucose', name: 'Glucose Tolerance Test', patient: 'zoya', patientName: 'Zoya Khan', date: 'Jun 8, 2026', timeAgo: '5 days ago', badgeClass: 'badge-normal', badgeText: '✅ Normal', findings: [{label:'Fasting Glucose', val:'88 mg/dL ✓', cls:'ok'}, {label:'2hr Post-Glucose', val:'112 mg/dL ✓', cls:'ok'}, {label:'HbA1c', val:'5.4% ✓', cls:'ok'}], insight: 'Excellent! Glucose levels are normal. Continue current diet. Consider annual checkup to maintain this healthy status.', file: 'zoya-glucose.pdf' },
+    { id: 3, type: 'bp', name: 'Blood Pressure Report', patient: 'sara', patientName: 'Sara Khan', date: 'Jun 12, 2026', timeAgo: 'Yesterday', badgeClass: 'badge-critical', badgeText: '🚨 Critical', findings: [{label:'Systolic BP', val:'158 mmHg ↑↑', cls:'bad'}, {label:'Diastolic BP', val:'95 mmHg ↑', cls:'bad'}, {label:'Heart Rate', val:'72 bpm ✓', cls:'ok'}, {label:'Sodium (Urine)', val:'High ↑', cls:'warn'}], insight: 'BP critically elevated (Stage 2 Hypertension). Reduce sodium <1,500mg/day. Avoid pickle, papad, processed foods. Consult doctor urgently!', file: 'sara-bp.pdf' },
+    { id: 4, type: 'blood', name: 'Full Body Checkup', patient: 'ali', patientName: 'Ali Khan', date: 'Jun 1, 2026', timeAgo: '12 days ago', badgeClass: 'badge-normal', badgeText: '✅ Normal', findings: [{label:'Total Cholesterol', val:'175 mg/dL ✓', cls:'ok'}, {label:'Vitamin D', val:'22 ng/mL ↓', cls:'warn'}, {label:'TSH (Thyroid)', val:'2.1 mIU/L ✓', cls:'ok'}, {label:'Liver (ALT)', val:'28 U/L ✓', cls:'ok'}], insight: 'Overall healthy! Vitamin D is low — take daily supplements (1000 IU) and get 15 min sunlight. Annual follow-up recommended.', file: 'ali-checkup.pdf' }
+  ];
+
+  if (!localStorage.getItem('nutriReports')) {
+    localStorage.setItem('nutriReports', JSON.stringify(defaultReports));
+  }
+}
+
+initNutriDatabase();
+
+let profiles = JSON.parse(localStorage.getItem('nutriProfiles'));
+const bgColors = ['#15803d','#0ea5e9','#8b5cf6','#f59e0b','#ef4444','#06b6d4','#ec4899','#a855f7'];
+
+function renderProfiles() {
+  const grid = document.getElementById('profilesGrid');
+  grid.innerHTML = '';
+  
+  const entries = Object.entries(profiles);
+  
+  entries.forEach(([key, p], index) => {
+    const color = bgColors[index % bgColors.length];
+    const card = document.createElement('div');
+    card.className = 'profile-card';
+    card.style.animation = 'fadeInUp 0.3s ease both';
+    
+    // Setup relation text
+    let relationText = p.relation;
+    if (key === 'ali') relationText = 'Head of Family';
+    
+    card.innerHTML = `
+      <div class="profile-card-top" onclick="goToDashboard('${key}')">
+        <div class="profile-big-av" style="background:${color};">${p.avatar}</div>
+        <div class="profile-info">
+          <h3>${p.name}</h3>
+          <div class="profile-condition ${p.condClass}">${p.condText}</div>
+          <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">Age ${p.age} · ${p.gender} · ${relationText}</div>
+        </div>
+      </div>
+      <div class="profile-stats-row">
+        <div class="profile-stat"><div class="stat-num" style="color:${color};">${p.weight} <span style="font-size:11px;color:var(--text-muted);">→ ${p.targetWeight || p.weight}</span></div><div class="stat-lbl">Weight (kg)</div></div>
+        <div class="profile-stat"><div class="stat-num" style="color:#f59e0b;">${p.statusVal}</div><div class="stat-lbl">${p.statusLabel}</div></div>
+        <div class="profile-stat"><div class="stat-num" style="color:#0284c7;">${p.waterGoal}L</div><div class="stat-lbl">Water Goal</div></div>
+      </div>
+      <div class="profile-actions">
+        <button class="prof-btn" onclick="viewProfile('${key}')">📊 View Reports</button>
+        <button class="prof-btn" onclick="openEditModal('${key}')">✏️ Edit</button>
+        ${key !== 'ali' ? `<button class="prof-btn" onclick="deleteProfile('${key}', event)" style="border-color:#ef4444;color:#ef4444;background:#fef2f2;flex:0 0 40px;padding:8px 0;display:flex;align-items:center;justify-content:center;font-size:14px;" title="Delete Profile">🗑️</button>` : ''}
+        <button class="prof-btn primary" onclick="goToDashboard('${key}')">🏠 Dashboard</button>
+      </div>`;
+    grid.appendChild(card);
+  });
+
+  updateInsights();
+  
+  // Sync sidebar text
+  const activeId = localStorage.getItem('activeProfileId') || 'ali';
+  const activeP = profiles[activeId];
+  if (activeP) {
+    const sideName = document.querySelector('.family-name');
+    if (sideName) sideName.textContent = activeP.name;
+    const sideAvatar = document.querySelector('.family-avatar');
+    if (sideAvatar) {
+      sideAvatar.textContent = activeP.avatar;
+      sideAvatar.style.background = bgColors[Object.keys(profiles).indexOf(activeId) % bgColors.length];
+    }
+  }
+}
+
+function updateInsights() {
+  const entries = Object.values(profiles);
+  const total = entries.length;
+  
+  let attention = 0;
+  entries.forEach(p => {
+    if (p.condition !== 'healthy') attention++;
+  });
+  const onTrack = total - attention;
+  
+  let sumCal = 0;
+  entries.forEach(p => sumCal += p.total);
+  const avgCal = Math.round(sumCal / total);
+  
+  let sumHyd = 0;
+  entries.forEach(p => sumHyd += (p.glasses / 8 * 100));
+  const avgHyd = Math.round(sumHyd / total);
+  
+  const reports = JSON.parse(localStorage.getItem('nutriReports')) || [];
+  
+  document.getElementById('insightTotal').textContent = total;
+  document.getElementById('insightAttention').textContent = attention;
+  document.getElementById('insightOnTrack').textContent = onTrack;
+  document.getElementById('insightAvgCal').textContent = `${avgCal.toLocaleString()} kcal`;
+  document.getElementById('insightAvgHyd').textContent = `${avgHyd}%`;
+  document.getElementById('insightReports').textContent = reports.length;
+
+  const sidebarSub = document.querySelector('.family-sub');
+  if (sidebarSub) sidebarSub.textContent = `Managing ${total} Profiles`;
+}
+
+function goToDashboard(key) {
+  localStorage.setItem('activeProfileId', key);
+  window.location = 'dashboard.html';
+}
+
+function viewProfile(key) {
+  localStorage.setItem('activeProfileId', key);
+  showToast(`📊 Loading health reports...`);
+  setTimeout(() => window.location = 'health-reports.html', 500);
+}
+
+function openAddModal() {
+  ['newName','newAge','newWeight','newHeight'].forEach(id => {
+    const el = document.getElementById(id);
+    if(el) el.value = '';
+  });
+  document.getElementById('addModal').classList.add('open');
+}
+function closeModal(e) {
+  if (e.target.classList.contains('modal-overlay')) {
+    e.target.classList.remove('open');
+  }
+}
+
+function saveProfile() {
+  const name = document.getElementById('newName').value.trim();
+  const age = document.getElementById('newAge').value.trim();
+  const gender = document.getElementById('newGender').value;
+  const relation = document.getElementById('newRelation').value;
+  const condition = document.getElementById('newCondition').value;
+  const weight = parseFloat(document.getElementById('newWeight').value) || 70;
+  const targetWeight = parseFloat(document.getElementById('newTargetWeight').value) || weight;
+  const height = parseFloat(document.getElementById('newHeight').value) || 165;
+
+  if (!name) { showToast('❌ Name zaroori hai!'); document.getElementById('newName').focus(); return; }
+  if (!age) { showToast('❌ Age zaroori hai!'); document.getElementById('newAge').focus(); return; }
+  if (!document.getElementById('newTargetWeight').value) { showToast('❌ Target Weight zaroori hai!'); document.getElementById('newTargetWeight').focus(); return; }
+
+  const condMap = {
+    healthy: { cls:'cond-healthy', text:'✅ Healthy', val:'1,800', lbl:'Daily Cal' },
+    diabetes: { cls:'cond-diabetes', text:'🩺 Diabetes Control', val:'120', lbl:'Glucose mg/dL' },
+    bp: { cls:'cond-bp', text:'💙 High BP Watch', val:'130/80', lbl:'BP (mmHg)' },
+    heart: { cls:'cond-heart', text:'❤️ Heart Watch', val:'75', lbl:'Heart Rate' },
+    weight: { cls:'cond-healthy', text:'⚖️ Weight Control', val:'1,500', lbl:'Daily Cal' }
+  };
+  const cond = condMap[condition] || condMap.healthy;
+  const initials = name.split(' ').map(n=>n[0]).join('').toUpperCase().slice(0,2) || name.slice(0,2).toUpperCase();
+  const newId = name.toLowerCase().replace(/[^a-z0-9]/g, '') || ('member' + (Object.keys(profiles).length + 1));
+
+  // Determine daily calorie target
+  let calorieTarget = 1800;
+  if (condition === 'weight') calorieTarget = 1400;
+  else if (condition === 'diabetes') calorieTarget = 1700;
+  else if (age > 60) calorieTarget = 1600;
+
+  // Calorie adjustments based on weight goals
+  if (targetWeight > weight) {
+    calorieTarget = Math.max(1800, calorieTarget + 400); // caloric surplus for weight gain
+  } else if (targetWeight < weight) {
+    calorieTarget = Math.min(1500, calorieTarget - 300); // caloric deficit for weight loss
+  }
+
+  profiles[newId] = {
+    id: newId,
+    name: name,
+    welcome: `Hello, ${name.split(' ')[0]}! 👋`,
+    avatar: initials,
+    age: parseInt(age),
+    gender: gender,
+    relation: relation,
+    condition: condition,
+    condText: cond.text,
+    condClass: cond.cls,
+    weight: weight,
+    targetWeight: targetWeight,
+    height: height,
+    calories: 0,
+    total: calorieTarget,
+    prot: 0,
+    protT: 100,
+    carb: 0,
+    carbT: 250,
+    fat: 0,
+    fatT: 60,
+    glasses: 0,
+    waterGoal: weight * 0.03 > 3.5 ? 3.5 : Math.round(weight * 0.03 * 10) / 10,
+    statusLabel: cond.lbl,
+    statusVal: cond.val
+  };
+
+  localStorage.setItem('nutriProfiles', JSON.stringify(profiles));
+  document.getElementById('addModal').classList.remove('open');
+  showToast(`✅ ${name}'s profile added successfully!`);
+  renderProfiles();
+}
+
+function openEditModal(key) {
+  const p = profiles[key];
+  if (!p) return;
+  document.getElementById('editProfileId').value = key;
+  document.getElementById('editName').value = p.name;
+  document.getElementById('editAge').value = p.age;
+  document.getElementById('editGender').value = p.gender;
+  document.getElementById('editRelation').value = p.relation;
+  document.getElementById('editCondition').value = p.condition || 'healthy';
+  document.getElementById('editWeight').value = p.weight;
+  document.getElementById('editTargetWeight').value = p.targetWeight || p.weight;
+  document.getElementById('editHeight').value = p.height;
+  document.getElementById('editStatusVal').value = p.statusVal || '';
+  
+  document.getElementById('editModal').classList.add('open');
+}
+
+function closeEditModal(e) {
+  if (e.target === document.getElementById('editModal') || e.target.classList.contains('modal-overlay')) {
+    document.getElementById('editModal').classList.remove('open');
+  }
+}
+
+function updateProfile() {
+  const id = document.getElementById('editProfileId').value;
+  const name = document.getElementById('editName').value.trim();
+  const age = parseInt(document.getElementById('editAge').value);
+  const gender = document.getElementById('editGender').value;
+  const relation = document.getElementById('editRelation').value;
+  const condition = document.getElementById('editCondition').value;
+  const weight = parseFloat(document.getElementById('editWeight').value) || 70;
+  const targetWeight = parseFloat(document.getElementById('editTargetWeight').value) || weight;
+  const height = parseFloat(document.getElementById('editHeight').value) || 165;
+  const statusVal = document.getElementById('editStatusVal').value.trim();
+
+  if (!name) { showToast('❌ Name zaroori hai!'); return; }
+  if (!age) { showToast('❌ Age zaroori hai!'); return; }
+
+  const condMap = {
+    healthy: { cls:'cond-healthy', text:'✅ Healthy', lbl:'Daily Cal' },
+    diabetes: { cls:'cond-diabetes', text:'🩺 Diabetes Control', lbl:'Glucose mg/dL' },
+    bp: { cls:'cond-bp', text:'💙 High BP Watch', lbl:'BP (mmHg)' },
+    heart: { cls:'cond-heart', text:'❤️ Heart Watch', lbl:'Heart Rate' },
+    weight: { cls:'cond-healthy', text:'⚖️ Weight Control', lbl:'Daily Cal' }
+  };
+  const cond = condMap[condition] || condMap.healthy;
+  const initials = name.split(' ').map(n=>n[0]).join('').toUpperCase().slice(0,2) || name.slice(0,2).toUpperCase();
+
+  // Determine calorie target
+  let calorieTarget = 1800;
+  if (condition === 'weight') calorieTarget = 1400;
+  else if (condition === 'diabetes') calorieTarget = 1700;
+  else if (age > 60) calorieTarget = 1600;
+
+  // Calorie adjustments based on weight goals
+  if (targetWeight > weight) {
+    calorieTarget = Math.max(1800, calorieTarget + 400); // surplus
+  } else if (targetWeight < weight) {
+    calorieTarget = Math.min(1500, calorieTarget - 300); // deficit
+  }
+
+  const p = profiles[id];
+  p.name = name;
+  p.avatar = initials;
+  p.age = age;
+  p.gender = gender;
+  p.relation = relation;
+  p.condition = condition;
+  p.condText = cond.text;
+  p.condClass = cond.cls;
+  p.weight = weight;
+  p.targetWeight = targetWeight;
+  p.height = height;
+  p.total = calorieTarget;
+  p.statusLabel = cond.lbl;
+  if (statusVal) p.statusVal = statusVal;
+
+  localStorage.setItem('nutriProfiles', JSON.stringify(profiles));
+  document.getElementById('editModal').classList.remove('open');
+  showToast(`✅ Profile for ${name} updated!`);
+  renderProfiles();
+}
+
+function deleteProfile(key, event) {
+  if (event) event.stopPropagation();
+  if (key === 'ali') {
+    showToast('❌ Primary profile (Ali Khan) delete nahi ho sakta!');
+    return;
+  }
+  const pName = profiles[key]?.name || 'this profile';
+  if (!confirm(`Kya aap sach mein ${pName} ka profile delete karna chahte hain?`)) {
+    return;
+  }
+  
+  delete profiles[key];
+  localStorage.setItem('nutriProfiles', JSON.stringify(profiles));
+  
+  const activeId = localStorage.getItem('activeProfileId') || 'ali';
+  if (activeId === key) {
+    localStorage.setItem('activeProfileId', 'ali');
+  }
+  
+  // Clean up associated dashboard meals
+  let allMeals = JSON.parse(localStorage.getItem('nutriDashboardMeals') || '{}');
+  if (allMeals[key]) {
+    delete allMeals[key];
+    localStorage.setItem('nutriDashboardMeals', JSON.stringify(allMeals));
+  }
+  
+  showToast(`🗑️ ${pName} ka profile delete kar diya gaya.`);
+  renderProfiles();
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 2800);
+}
+
+// ===== SETTINGS MODAL =====
+function openSettingsModal() {
+  const key = localStorage.getItem('OPENROUTER_API_KEY') || '';
+  document.getElementById('settingsApiKey').value = key;
+  document.getElementById('settingsModal').classList.add('open');
+}
+function closeSettingsModal(e) {
+  if (e.target === document.getElementById('settingsModal') || e.target.classList.contains('modal-overlay')) {
+    document.getElementById('settingsModal').classList.remove('open');
+  }
+}
+function saveSettings() {
+  const keyVal = document.getElementById('settingsApiKey').value.trim();
+  localStorage.setItem('OPENROUTER_API_KEY', keyVal);
+  document.getElementById('settingsModal').classList.remove('open');
+  showToast('⚙️ Settings saved successfully!');
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const sidebarSettings = document.querySelector('.sidebar-link[onclick*="Settings"]');
+  if (sidebarSettings) {
+    sidebarSettings.removeAttribute('onclick');
+    sidebarSettings.addEventListener('click', openSettingsModal);
+  }
+});
+
+// Init rendering
+renderProfiles();
+</script>
+
+<!-- SETTINGS MODAL -->
+<div class="modal-overlay" id="settingsModal" onclick="closeSettingsModal(event)">
+  <div class="modal-box">
+    <div class="modal-header">
+      <span class="modal-title">⚙️ NutriAI Settings</span>
+      <button class="modal-close" onclick="document.getElementById('settingsModal').classList.remove('open')">✕</button>
+    </div>
+    <div class="form-group">
+      <label class="form-label" style="font-size:13px;font-weight:600;display:block;margin-bottom:6px;">OpenRouter API Key</label>
+      <input type="password" class="form-input" id="settingsApiKey" placeholder="sk-or-v1-... type ka key paste karein..." style="width:100%;padding:10px 14px;border:1.5px solid var(--border);border-radius:var(--radius-sm);outline:none;font-size:13px;"/>
+      <div style="font-size:11px;color:var(--text-muted);margin-top:6px;">
+        Apna key <a href="https://openrouter.ai/keys" target="_blank" style="color:var(--primary);font-weight:700;">yahan click karke OpenRouter se free/paid mein haasil karein</a>. Key local storage mein save rahegi.
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:20px;">
+      <button style="flex:1;padding:11px;border-radius:var(--radius-full);border:1.5px solid var(--border);background:white;font-size:14px;font-weight:600;cursor:pointer;" onclick="document.getElementById('settingsModal').classList.remove('open')">Cancel</button>
+      <button style="flex:2;padding:11px;border-radius:var(--radius-full);background:var(--primary);color:white;border:none;font-size:14px;font-weight:700;cursor:pointer;" onclick="saveSettings()">Save Settings</button>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
